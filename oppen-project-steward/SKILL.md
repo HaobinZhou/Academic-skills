@@ -144,6 +144,8 @@ index TARGET
 validate TARGET
 ```
 
+Invoke the helper through the active Python 3 interpreter. On Windows, use `py -3 ABSOLUTE_SKILL_PATH\scripts\oppen_project_steward.py ...` or `python ...`; do not rely on the POSIX shebang. The helper preserves deterministic LF-managed text and uses the platform file-lock backend automatically.
+
 Before using `adopt`, `contract-audit --input`, `attention`, or `memory`, read [references/payload-schemas.md](references/payload-schemas.md). Create the JSON outside the project; the helper validates and removes it after a successful write.
 
 Expect unchanged indexing commands to be idempotent. Do not use `init` as a migration command. Do not edit generated registries, indices, IDs, paths, statuses, or relationship reverse links manually.

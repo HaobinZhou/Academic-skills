@@ -20,8 +20,13 @@ from pathlib import Path, PurePosixPath
 
 try:
     import fcntl
-except ImportError:  # pragma: no cover - Windows retains atomic single writes.
+except ImportError:  # pragma: no cover - unavailable on Windows.
     fcntl = None  # type: ignore[assignment]
+
+try:
+    import msvcrt
+except ImportError:  # pragma: no cover - unavailable on POSIX.
+    msvcrt = None  # type: ignore[assignment]
 
 
 SCHEMA_MARKER = "<!-- oppen-project-steward:v3 -->"
@@ -123,6 +128,15 @@ RECOVERABLE_AUDIT_RESIDUE = re.compile(
 KEY_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]{0,79}$")
 PLACEHOLDER_PATTERN = re.compile(r"\bTODO\b|请填写", re.IGNORECASE)
 MEMORY_STATUSES = {"active", "superseded", "invalidated"}
+IS_WINDOWS = os.name == "nt"
+WINDOWS_RESERVED_NAMES = {
+    "aux",
+    "con",
+    "nul",
+    "prn",
+    *(f"com{number}" for number in range(1, 10)),
+    *(f"lpt{number}" for number in range(1, 10)),
+}
 ATTENTION_PAYLOAD_FIELDS = (
     "title",
     "blocking",
@@ -600,6 +614,16 @@ def validate_key(value: str, label: str) -> str:
     return cleaned
 
 
+def validate_portable_path_key(value: str, label: str) -> str:
+    cleaned = validate_key(value, label)
+    if cleaned.endswith("."):
+        raise ProjectError(f"{label} cannot end with a dot on Windows: {value!r}")
+    device_stem = cleaned.split(".", 1)[0].casefold()
+    if device_stem in WINDOWS_RESERVED_NAMES:
+        raise ProjectError(f"{label} uses a Windows reserved device name: {value!r}")
+    return cleaned
+
+
 def validate_table_value(value: str, label: str) -> str:
     cleaned = value.strip()
     if not cleaned:
@@ -708,8 +732,9 @@ def atomic_write(path: Path, text: str) -> None:
         with tempfile.NamedTemporaryFile(
             mode="w",
             encoding="utf-8",
+            newline="\n",
             dir=path.parent,
-            prefix=f".{path.name}.steward-staging-",
+            prefix=".steward-staging-",
             delete=False,
         ) as staging:
             staging.write(text)
@@ -812,8 +837,9 @@ def managed_file_transaction(
                 with tempfile.NamedTemporaryFile(
                     mode="w",
                     encoding="utf-8",
+                    newline="\n",
                     dir=path.parent,
-                    prefix=f".{path.name}.steward-transaction-",
+                    prefix=".steward-transaction-",
                     delete=False,
                 ) as handle:
                     handle.write(text)
@@ -855,7 +881,7 @@ def managed_file_transaction(
                     continue
                 with tempfile.NamedTemporaryFile(
                     dir=path.parent,
-                    prefix=f".{path.name}.steward-restore-",
+                    prefix=".steward-restore-",
                     delete=False,
                 ) as handle:
                     restore_path = Path(handle.name)
@@ -870,18 +896,47 @@ def managed_file_transaction(
 
 @contextmanager
 def project_write_lock(root: Path):
-    if fcntl is None:
-        yield
-        return
     lock_root = Path(tempfile.gettempdir()) / "oppen-project-steward-locks"
     lock_root.mkdir(parents=True, exist_ok=True)
-    lock_key = hashlib.sha256(str(root.resolve()).encode("utf-8")).hexdigest()
-    with (lock_root / f"{lock_key}.lock").open("a+", encoding="utf-8") as handle:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
-        try:
-            yield
-        finally:
-            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+    lock_key = hashlib.sha256(
+        normalized_path_identity(root).encode("utf-8")
+    ).hexdigest()
+    with (lock_root / f"{lock_key}.lock").open("a+b") as handle:
+        if fcntl is not None:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            return
+        if msvcrt is not None:
+            handle.seek(0, os.SEEK_END)
+            if handle.tell() == 0:
+                handle.write(b"\0")
+                handle.flush()
+                os.fsync(handle.fileno())
+            handle.seek(0)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+            try:
+                yield
+            finally:
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            return
+        raise ProjectError("No supported cross-process file-lock backend is available")
+
+
+def normalized_path_identity(path: Path) -> str:
+    return os.path.normcase(os.path.normpath(str(path.resolve())))
+
+
+def system_temporary_roots() -> tuple[Path, ...]:
+    roots = {Path(tempfile.gettempdir()).resolve()}
+    if not IS_WINDOWS:
+        for conventional_root in (Path("/tmp"), Path("/var/tmp")):
+            if conventional_root.is_dir():
+                roots.add(conventional_root.resolve())
+    return tuple(sorted(roots))
 
 
 def file_sha256(path: Path) -> str:
@@ -3138,17 +3193,13 @@ def directory_manifest(root: Path, label: str) -> tuple[tuple[str, int, str], ..
 def promote_audit(root: Path, stage: str, input_dir: Path) -> Path:
     root = root.expanduser().resolve()
     _, roles = ensure_v3_project(root, create=False)
-    stage = validate_key(stage, "audit stage")
+    stage = validate_portable_path_key(stage, "audit stage")
     requested_source = input_dir.expanduser()
     if requested_source.is_symlink():
         raise ProjectError("Audit promotion input cannot be a symbolic link")
     source = requested_source.resolve()
-    temporary_roots = {Path(tempfile.gettempdir()).resolve()}
-    for conventional_root in (Path("/tmp"), Path("/var/tmp")):
-        if conventional_root.is_dir():
-            temporary_roots.add(conventional_root.resolve())
     in_temporary_root = False
-    for temporary_root in temporary_roots:
+    for temporary_root in system_temporary_roots():
         try:
             relative = source.relative_to(temporary_root)
         except ValueError:
@@ -3341,11 +3392,8 @@ def audit_recovery_ambiguity(
 
 
 def recovery_root_for_project(root: Path) -> Path:
-    candidates = [Path(tempfile.gettempdir()), Path("/tmp"), Path("/var/tmp")]
-    for temporary_root in candidates:
-        if not temporary_root.is_dir():
-            continue
-        recovery_root = temporary_root.resolve() / "oppen-project-steward-recovery"
+    for temporary_root in system_temporary_roots():
+        recovery_root = temporary_root / "oppen-project-steward-recovery"
         if not path_contains(root, recovery_root):
             return recovery_root
     raise ProjectError(
@@ -3378,7 +3426,7 @@ def recover_audit(root: Path, stage: str) -> Path:
         raise ProjectError(
             f"DAMAGED: Audit recovery cannot interpret governance: {exc}"
         ) from exc
-    stage = validate_key(stage, "audit stage")
+    stage = validate_portable_path_key(stage, "audit stage")
     stage_dir = roles["Audit"] / "Runs" / stage
     current = stage_dir / "current"
     if not stage_dir.is_dir() or stage_dir.is_symlink():
@@ -3433,7 +3481,9 @@ def recover_audit(root: Path, stage: str) -> Path:
     )
     integrity = manifest_integrity(before_manifest)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
-    project_id = hashlib.sha256(str(root).encode("utf-8")).hexdigest()[:16]
+    project_id = hashlib.sha256(
+        normalized_path_identity(root).encode("utf-8")
+    ).hexdigest()[:16]
     recovery_root = recovery_root_for_project(root)
     destination = recovery_root / project_id / stage / f"{timestamp}-{integrity[:12]}"
 
@@ -4033,6 +4083,10 @@ def validate_audit_runs(
     if root_files:
         add_error(report, "Audit/Runs contains files outside a stage/current directory")
     for stage in sorted(path for path in runs_dir.iterdir() if path.is_dir()):
+        try:
+            validate_portable_path_key(stage.name, "audit stage")
+        except ProjectError as exc:
+            add_error(report, str(exc))
         children = [path for path in stage.iterdir() if path.name != ".DS_Store"]
         invalid_paths = [path for path in children if path.name != "current"]
         invalid = [path.name for path in invalid_paths]

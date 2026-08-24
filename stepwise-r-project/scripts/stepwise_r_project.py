@@ -14,14 +14,18 @@ import sys
 import tempfile
 from datetime import datetime, timezone
 from contextlib import contextmanager
-from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
 
 try:
     import fcntl
-except ImportError:  # pragma: no cover - Windows fallback retains atomic single writes.
+except ImportError:  # pragma: no cover - unavailable on Windows.
     fcntl = None  # type: ignore[assignment]
+
+try:
+    import msvcrt
+except ImportError:  # pragma: no cover - unavailable on POSIX.
+    msvcrt = None  # type: ignore[assignment]
 
 
 SCHEMA_MARKER = "<!-- stepwise-r-project:v3 -->"
@@ -72,9 +76,6 @@ MIGRATION_WRITE_SET = (
     "attention/**",
 )
 MIGRATION_STAGING_ESTIMATE_OVERHEAD = 64 * 1024
-_MIGRATION_OVERLAY: ContextVar[tuple[Path, Path] | None] = ContextVar(
-    "stepwise_migration_overlay", default=None
-)
 RECOVERABLE_AUDIT_NAME = re.compile(
     r"(?:^|[._-])(?:staging|stage|failed|failure|incomplete|partial|tmp|temp)"
     r"(?:$|[._-])",
@@ -290,39 +291,16 @@ def resolve_project_path(
     except ValueError as exc:
         raise ProjectError(f"{label} must stay inside the project: {raw_path}") from exc
     resolved = candidate.resolve()
-    allowed_roots = [root]
-    overlay = _MIGRATION_OVERLAY.get()
-    if overlay is not None and overlay[0] == root:
-        allowed_roots.append(overlay[1])
-    if not any(
-        resolved == allowed or allowed in resolved.parents for allowed in allowed_roots
-    ):
+    if resolved != root and root not in resolved.parents:
         raise ProjectError(f"{label} must stay inside the project: {raw_path}")
     if must_exist and not candidate.exists():
         raise ProjectError(f"{label} does not exist: {relative.as_posix()}")
-    return (candidate if overlay is not None and overlay[0] == root else resolved), relative.as_posix()
+    return resolved, relative.as_posix()
 
 
 def path_resolves_within_project_view(path: Path, root: Path) -> bool:
     resolved = path.resolve()
-    allowed_roots = [root]
-    overlay = _MIGRATION_OVERLAY.get()
-    if overlay is not None and overlay[0] == root:
-        allowed_roots.append(overlay[1])
-    return any(
-        resolved == allowed or allowed in resolved.parents for allowed in allowed_roots
-    )
-
-
-@contextmanager
-def migration_overlay_view(candidate_root: Path, source_root: Path):
-    candidate_root = candidate_root.expanduser().resolve()
-    source_root = source_root.expanduser().resolve()
-    token = _MIGRATION_OVERLAY.set((candidate_root, source_root))
-    try:
-        yield
-    finally:
-        _MIGRATION_OVERLAY.reset(token)
+    return resolved == root or root in resolved.parents
 
 
 def detect_roles(root: Path, *, create_missing: bool) -> dict[str, Path]:
@@ -457,19 +435,32 @@ def atomic_write(path: Path, text: str) -> None:
 
 @contextmanager
 def project_write_lock(root: Path):
-    if fcntl is None:
+    if fcntl is None and msvcrt is None:
         yield
         return
     lock_root = Path(tempfile.gettempdir()) / "stepwise-r-project-locks"
     lock_root.mkdir(parents=True, exist_ok=True)
-    lock_key = hashlib.sha256(str(root.resolve()).encode("utf-8")).hexdigest()
+    normalized_root = os.path.normcase(str(root.resolve()))
+    lock_key = hashlib.sha256(normalized_root.encode("utf-8")).hexdigest()
     lock_path = lock_root / f"{lock_key}.lock"
-    with lock_path.open("a+", encoding="utf-8") as handle:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+    with lock_path.open("a+b") as handle:
+        if fcntl is not None:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        else:
+            handle.seek(0, os.SEEK_END)
+            if handle.tell() == 0:
+                handle.write(b"\0")
+                handle.flush()
+            handle.seek(0)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
         try:
             yield
         finally:
-            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            if fcntl is not None:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            else:
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
 
 
 def file_sha256(path: Path) -> str:
@@ -2173,13 +2164,6 @@ def build_migration_overlay(root: Path, destination: Path) -> None:
     root = root.expanduser().resolve()
     destination.mkdir()
     shutil.copy2(root / "project.md", destination / "project.md")
-    excluded = {".git", "project.md", "memory", "attention"}
-    for source in root.iterdir():
-        if source.name.casefold() in excluded:
-            continue
-        (destination / source.name).symlink_to(
-            source, target_is_directory=source.is_dir()
-        )
 
 
 def inspect_migration_overlay(root: Path, candidate: Path) -> dict[str, object]:
@@ -2192,15 +2176,7 @@ def inspect_migration_overlay(root: Path, candidate: Path) -> dict[str, object]:
     for top_level in sorted(candidate.iterdir(), key=lambda path: path.name):
         relative = top_level.relative_to(candidate).as_posix()
         if top_level.is_symlink():
-            source = root / top_level.name
-            if (
-                path_overlaps_migration_write_set(relative)
-                or not source.exists()
-                or top_level.resolve() != source.resolve()
-            ):
-                unexpected_paths.append(relative)
-            else:
-                overlay_references.append(relative)
+            unexpected_paths.append(relative)
             continue
         if not path_overlaps_migration_write_set(relative):
             unexpected_paths.append(relative)
@@ -2252,20 +2228,53 @@ def require_safe_migration_overlay(root: Path, candidate: Path) -> dict[str, obj
     return inspection
 
 
+def validate_migration_candidate(
+    source_root: Path, candidate_root: Path
+) -> ValidationReport:
+    source_root = source_root.expanduser().resolve()
+    candidate_root = candidate_root.expanduser().resolve()
+    report = ValidationReport(errors=[], warnings=[])
+    if not candidate_root.is_dir():
+        add_error(report, f"Migration candidate does not exist: {candidate_root}")
+        return report
+    roles = validate_project_structure(source_root, report)
+    project_text, canonical_entries, result_entries = validate_project_md(
+        candidate_root, report
+    )
+    validate_current_indexes(
+        source_root,
+        roles,
+        project_text,
+        canonical_entries,
+        result_entries,
+        report,
+    )
+    validate_canonical_entries(source_root, canonical_entries, report)
+    validate_unregistered_protocols(
+        source_root, roles, canonical_entries, report
+    )
+    validate_results(source_root, roles, result_entries, report)
+    validate_memory(candidate_root, canonical_entries, report)
+    validate_attention(candidate_root, report)
+    validate_function_audits(source_root, roles, report)
+    validate_audit_runs(source_root, roles, report)
+    validate_parallel_copies(source_root, report)
+    return report
+
+
 def apply_staged_v3_state(
-    root: Path,
+    source_root: Path,
+    candidate_root: Path,
     decisions: list[dict[str, object]],
     attention_entries: list[dict[str, object]],
 ) -> None:
-    root = root.resolve()
-    project_file = root / "project.md"
+    source_root = source_root.expanduser().resolve()
+    candidate_root = candidate_root.expanduser().resolve()
+    project_file = candidate_root / "project.md"
     text = project_file.read_text(encoding="utf-8")
-    legacy_dir = detect_optional_directory(root, MEMORY_ALIASES, "legacy Memory")
-    if legacy_dir is not None:
-        shutil.rmtree(legacy_dir)
-    memory_dir, _, memory_entries = managed_paths(root, MEMORY_DIRECTORY)
+    _, _, memory_entries = managed_paths(candidate_root, MEMORY_DIRECTORY)
     memory_entries.mkdir(parents=True)
-    _, _, attention_directory = managed_paths(root, ATTENTION_DIRECTORY)
+    _, _, attention_directory = managed_paths(candidate_root, ATTENTION_DIRECTORY)
     attention_directory.mkdir(parents=True)
     for number, decision in enumerate(decisions, start=1):
         memory_id = f"M-{number:04d}"
@@ -2297,9 +2306,55 @@ def apply_staged_v3_state(
     if role_heading not in text:
         raise ProjectError("v2 project.md lacks the Directory Roles heading")
     text = text.replace(role_heading, navigation + role_heading, 1)
+    roles = detect_roles(source_root, create_missing=False)
+    missing_roles = [role for role in ROLE_ALIASES if role not in roles]
+    if missing_roles:
+        raise ProjectError(
+            "Missing project role directories: " + ", ".join(missing_roles)
+        )
+    canonical_entries = parse_canonical_entries(text)
+    result_entries = parse_result_entries(text)
+    text = replace_block(
+        text,
+        NAVIGATION_START,
+        NAVIGATION_END,
+        managed_navigation_table(),
+        "managed navigation",
+    )
+    text = replace_block(
+        text, ROLE_START, ROLE_END, role_table(source_root, roles), "role"
+    )
+    text = replace_block(
+        text,
+        CANONICAL_START,
+        CANONICAL_END,
+        render_canonical_entries(canonical_entries),
+        "canonical source",
+    )
+    text = replace_block(
+        text,
+        RESULT_START,
+        RESULT_END,
+        render_result_entries(result_entries),
+        "result registry",
+    )
+    text = replace_block(
+        text,
+        SCRIPT_START,
+        SCRIPT_END,
+        render_script_index(source_root, roles["R"]),
+        "script index",
+    )
+    text = replace_block(
+        text,
+        FUNCTION_START,
+        FUNCTION_END,
+        render_function_index(source_root, roles["Audit"]),
+        "function audit index",
+    )
     atomic_write(project_file, text.rstrip() + "\n")
-    ensure_managed_topology(root)
-    _refresh_index_unlocked(root)
+    ensure_managed_topology(candidate_root)
+    refresh_managed_indexes_unlocked(candidate_root)
 
 
 def copy_managed_backup(root: Path, backup: Path) -> list[str]:
@@ -2391,15 +2446,14 @@ def migration_apply(
             staged = transaction_root / "candidate-overlay"
             backup = transaction_root / "managed-backup"
             build_migration_overlay(root, staged)
-            with migration_overlay_view(staged, root):
-                apply_staged_v3_state(staged, decisions, attention_entries)
-                staged_inspection = require_safe_migration_overlay(root, staged)
-                staged_report = validate_project(staged)
-                if inspect_migration_overlay(root, staged) != staged_inspection:
-                    raise ProjectError(
-                        f"{MIGRATION_BLOCKED_UNSAFE_STAGING_PLAN}: candidate validation "
-                        "modified migration staging"
-                    )
+            apply_staged_v3_state(root, staged, decisions, attention_entries)
+            staged_inspection = require_safe_migration_overlay(root, staged)
+            staged_report = validate_migration_candidate(root, staged)
+            if inspect_migration_overlay(root, staged) != staged_inspection:
+                raise ProjectError(
+                    f"{MIGRATION_BLOCKED_UNSAFE_STAGING_PLAN}: candidate validation "
+                    "modified migration staging"
+                )
             if not staged_report.ok:
                 raise ProjectError(
                     "Staged v3 migration failed validation: "

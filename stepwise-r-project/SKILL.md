@@ -32,7 +32,7 @@ If the target has a recognized v2 marker, do not run `init` or edit v3 managed s
 
 Preserve adopted R/Data/Results/Audit aliases, canonical topics and owners, verification paths, statuses, Result IDs and files, Function Audits, Audit `current/`, R code, data, and scientific content. Migration upgrades governance state only; it does not rerun analyses or redesign the research project.
 
-Migration transactions stage only the managed migration write set. Never clone, copy, hardlink, or otherwise materialize the full scientific project; unchanged R, Data, Results, Audit current evidence, and other content remain in place and are read only as needed for candidate validation. Cross-filesystem migration is supported, and `EXDEV` must never trigger recursive full-project copying.
+Migration transactions stage only the managed migration write set. Never clone, copy, hardlink, symlink, or otherwise materialize the full scientific project; unchanged R, Data, Results, Audit current evidence, and other content remain in place and are read only as needed for candidate validation. Candidate validation must not require filesystem symlink privileges and must work on Windows, macOS, and Linux. Cross-filesystem migration is supported, and `EXDEV` must never trigger recursive full-project copying.
 
 For already-v3 projects, `migrate --check` and repeated `--apply` perform no migration. For unmanaged, ambiguous, or damaged projects, do not guess; report the required repair.
 

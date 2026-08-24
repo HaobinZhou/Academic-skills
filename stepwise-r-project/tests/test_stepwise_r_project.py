@@ -1352,7 +1352,7 @@ pass
             self.assertNotIn(huge_data, copied_files)
             self.assertTrue(stepwise.validate_project(root).ok)
 
-    def test_same_filesystem_overlay_contains_only_managed_files_and_references(self) -> None:
+    def test_same_filesystem_staging_contains_only_managed_files(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             base = Path(temp_dir)
             root = self.make_v2_project(base / "v2", realistic=True)
@@ -1363,9 +1363,10 @@ pass
             link_spy.assert_not_called()
             self.assertTrue((candidate / "project.md").is_file())
             for relative in ("R", "Data", "Results", "Audit"):
-                self.assertTrue((candidate / relative).is_symlink())
+                self.assertFalse((candidate / relative).exists())
             inspection = stepwise.inspect_migration_overlay(root, candidate)
             self.assertEqual(inspection["materialized_files"], ["project.md"])
+            self.assertEqual(inspection["overlay_references"], [])
             self.assertEqual(inspection["unexpected_paths"], [])
             self.assertEqual(inspection["full_project_materialization"], "NO")
 
@@ -1384,14 +1385,13 @@ pass
                 )
             }
             stepwise.build_migration_overlay(root, candidate)
-            with stepwise.migration_overlay_view(candidate, root):
-                stepwise.apply_staged_v3_state(candidate, [], [])
-                inspection = stepwise.require_safe_migration_overlay(root, candidate)
-                report = stepwise.validate_project(candidate)
+            stepwise.apply_staged_v3_state(root, candidate, [], [])
+            inspection = stepwise.require_safe_migration_overlay(root, candidate)
+            report = stepwise.validate_migration_candidate(root, candidate)
             self.assertTrue(report.ok, report.errors)
             self.assertIn(stepwise.V2_SCHEMA_MARKER, (root / "project.md").read_text())
             self.assertIn(stepwise.SCHEMA_MARKER, (candidate / "project.md").read_text())
-            self.assertTrue((candidate / "R").is_symlink())
+            self.assertFalse((candidate / "R").exists())
             self.assertEqual(inspection["unexpected_paths"], [])
             self.assertTrue(
                 all(
@@ -1403,6 +1403,47 @@ pass
                 preserved,
                 {path: (root / path).read_bytes() for path in preserved},
             )
+
+    def test_windows_symlink_privilege_is_not_required_for_migration(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = self.make_v2_project(
+                Path(temp_dir) / "v2", memory_keys=("design",), realistic=True
+            )
+            payload = {
+                "legacy_memory": [self.migration_record("Memory/design.md")]
+            }
+            with mock.patch.object(
+                Path,
+                "symlink_to",
+                side_effect=PermissionError(1314, "required privilege not held"),
+            ) as symlink_spy:
+                result = stepwise.migration_apply(root, payload)
+            self.assertEqual(result.state, stepwise.PROJECT_V3)
+            symlink_spy.assert_not_called()
+            self.assertTrue(stepwise.validate_project(root).ok)
+
+    def test_windows_project_write_lock_uses_msvcrt_byte_lock(self) -> None:
+        class FakeMsvcrt:
+            LK_LOCK = 1
+            LK_UNLCK = 2
+
+            def __init__(self) -> None:
+                self.calls: list[tuple[int, int]] = []
+
+            def locking(self, file_descriptor: int, mode: int, count: int) -> None:
+                self.calls.append((mode, count))
+
+        fake_msvcrt = FakeMsvcrt()
+        with (
+            mock.patch.object(stepwise, "fcntl", None),
+            mock.patch.object(stepwise, "msvcrt", fake_msvcrt),
+            stepwise.project_write_lock(self.root),
+        ):
+            self.assertEqual(fake_msvcrt.calls, [(fake_msvcrt.LK_LOCK, 1)])
+        self.assertEqual(
+            fake_msvcrt.calls,
+            [(fake_msvcrt.LK_LOCK, 1), (fake_msvcrt.LK_UNLCK, 1)],
+        )
 
     def test_unsafe_candidate_materialization_is_blocked(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
