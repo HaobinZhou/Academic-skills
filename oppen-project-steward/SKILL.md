@@ -1,15 +1,34 @@
 ---
 name: oppen-project-steward
-description: Maintain durable, non-scientific AI-assisted projects with canonical ownership, Git-owned history, current Deliverables, recoverable machine Audit evidence, Human Attention escalation, consequential Decision Memory, deterministic registries, and path-scoped dirty-work protection. Use when initializing or adopting an existing project, upgrading a legacy Steward layout, governing, recovering Audit staging, indexing, escalating material unresolved concerns, recording non-reconstructable decision context, or validating long-lived software, AI application, quantitative engineering, infrastructure, or mixed code/document projects.
+description: Maintain durable, non-scientific AI-assisted projects with canonical ownership, Git-owned history, current Deliverables, recoverable machine Audit evidence, Human Attention escalation, consequential Decision Memory, deterministic registries, and path-scoped dirty-work protection. Use when initializing or adopting an existing project, upgrading a legacy Steward layout, governing, recovering Audit staging, indexing, escalating material unresolved concerns, recording non-reconstructable decision context, or validating long-lived software, AI application, quantitative engineering, infrastructure, or mixed code/document projects. Also use when asked to check for or install updates to this skill from its GitHub source.
 ---
 
 # Oppen Project Steward
 
 Keep one understandable current project truth. Keep artifact history in Git. Use AI judgment for meaning and the bundled helper for mechanics.
 
+## Skill Updates
+
+When the user invokes this skill and says “check the update”, “check for updates”, “检查更新”, or “更新技能”, check its GitHub source and install an available update in the same task. This request authorizes the available skill update; do not ask again merely because a newer commit exists. If the user explicitly says “check only”, “只检查，不更新”, or equivalent, only report availability.
+
+Run the bundled updater with the active Python 3 interpreter and the **absolute path of this installed skill**:
+
+```text
+python ABSOLUTE_SKILL_PATH/scripts/update_skill.py --apply
+python ABSOLUTE_SKILL_PATH/scripts/update_skill.py --check
+```
+
+- Use `--apply` for the default check-and-update request and `--check` for an explicit read-only check. On Windows, `py -3` is also suitable. Python and Git must be available.
+- The source is [HaobinZhou/academic-skills](https://github.com/HaobinZhou/academic-skills), directory `oppen-project-steward`. The updater resolves GitHub's current default branch and pins its commit; it never guesses a version from governance markers such as v3 or 4.3.
+- This supports the repository's documented Git clone installation, including symlinked skills. It resolves this skill's location independently of the working project. A shared checkout updates **all upstream changed paths in academic-skills**, including other skills; report that scope. If the user restricts changes to only one skill, do not use the shared-checkout updater.
+- Checks may fetch Git objects and metadata but do not change installed files or the local branch. Apply uses only a fast-forward, preserves unrelated dirty work, and blocks overlapping tracked, staged, untracked, or ignored files. Never reset, force, stash, rebase, or discard local changes to obtain an update. For a copied installation, source mismatch, divergence, detached HEAD, network failure, or conflict, report the concrete blocker and preserve the installation; do not claim it is current.
+- Report `UP_TO_DATE`, `UPDATE_AVAILABLE`, `UPDATED`, `LOCAL_AHEAD`, or `UPDATE_BLOCKED`, the before/upstream/after commits when available, and changed paths or conflicts. `LOCAL_AHEAD` means local commits are ahead of upstream and no downgrade was performed. After `UPDATED`, reread the installed `SKILL.md` before using its new instructions.
+- Skill maintenance uses this workflow directly. It does not require adopting, indexing, migrating, or modifying the user's working project. Project layout upgrades remain separate authorized work under the normal workflow below.
+- After `UPDATED`, if OppenSteward-MCP is available, follow the skill-guide refresh check in [MCP publication and refresh](references/mcp-publication.md).
+
 ## Core Workflow
 
-1. Resolve and classify the target with `validate` before managed work. For `MANAGED_READY`, read `.oppen-project-steward/registry.md`, relevant Canonical sources, implementation, tests, current Audit, and relevant Deliverables. Navigate active Attention and Decision Memory through their generated indices; do not load every Memory entry.
+1. Resolve and classify the target with `validate` before managed work. For `MANAGED_READY`, read `.oppen-project-steward/registry.md`, relevant Canonical sources, implementation, tests, current Audit, and relevant Deliverables. Navigate active Attention and Decision Memory through their generated indices; do not load every Memory entry. Read relevant MCP discussion documents as needed, using `Discussion/index.md` within the namespace when available.
 2. Treat an ordinary unmanaged project as `ADOPTION_REQUIRED`, not damaged. Use `adopt --check`, make only the necessary semantic mappings, then use `adopt --apply`. Stop on `ADOPTION_BLOCKED`; do not invent another namespace.
 3. Confirm the project is Git-backed when applicable; the helper never initializes, commits, or rewrites Git history. Use `init` only for a genuinely new project. Use `upgrade-layout` only for a proven `LEGACY_STEWARD_LAYOUT`.
 4. Search the canonical registry before adding documentation. Update the registered owner in place instead of creating a parallel version.
@@ -20,6 +39,7 @@ Keep one understandable current project truth. Keep artifact history in Git. Use
 9. Evaluate Memory only at a consequential decision boundary. Never create it merely because a task, session, code change, or test run ended.
 10. Do not widen scope when inspection reveals an adjacent issue. Complete the authorized work, then use Attention only if the separate trigger passes.
 11. Run relevant tests and registered verification, then run `index` and `validate`. Do not claim completion while validation fails.
+12. After successful `init`, check OppenSteward-MCP availability and whether this exact project root is published. If available and unpublished, ask whether the user wants to publish it; register it only after consent. After changes to an already-published project, refresh and verify its MCP view. Follow [MCP publication and refresh](references/mcp-publication.md); local validation alone does not prove publication.
 
 ## Five Information Systems
 
@@ -45,22 +65,35 @@ Keep each fact in its owning system. Deliverables are registered current outputs
 
 ## Steward-Owned State
 
-`.oppen-project-steward/**` is Steward-owned managed state. Steward continuity is determined by the helper-managed `.oppen-project-steward/.managed-state.json` baseline, not by comparison with Git HEAD.
+`.oppen-project-steward/**` is Steward-owned managed state except for MCP-owned `Discussion/**`. Steward continuity is determined by the helper-managed `.oppen-project-steward/.managed-state.json` baseline, not by comparison with Git HEAD.
 
 - Continue normal Steward operations when managed files match the last successful baseline, whether Git sees them as committed, staged, modified, or untracked. A Git commit is never required merely to continue governance.
 - Stop with `MANAGED_STATE_CONFLICT` when `registry.md`, `Memory/**`, `Attention/**`, or `Audit/Contracts/**` differs from the baseline. Inspect and reconcile only the reported paths; never reset them from Git or overwrite unexplained drift.
 - Keep user-owned project paths under Managed Operation Write Set Git conflict protection. Referencing a dirty user-owned Canonical owner is allowed; writing a dirty user-owned path is not.
-- Exclude `.managed-state.json`, `Audit/Runs/**`, and user project content from the baseline. Let Audit retain its own evidence-integrity checks.
+- Exclude `.managed-state.json`, `Audit/Runs/**`, `Discussion/**` (including its MCP-maintained index), and user project content from the baseline. Let Audit retain its own evidence-integrity checks.
 - For a valid pre-4.3 managed project missing only the baseline, run `managed-state TARGET --check`, then `managed-state TARGET --bootstrap`. Bootstrap creates generation 1 without re-adoption, Git mutation, or a required commit. Never bootstrap a damaged or otherwise blocked namespace.
 
 ## Project Roles
 
-- Steward owns only `.oppen-project-steward/`, containing `registry.md`, `Memory/`, `Attention/`, and `Audit/` with fixed topology.
+- Steward owns `registry.md`, `Memory/`, `Attention/`, and `Audit/` with fixed topology inside `.oppen-project-steward/`. The namespace also permits optional MCP-owned `Discussion/`.
 - Source, Data, and Deliverables are optional logical roles mapped only to useful existing directories.
 - Do not create standard role directories or reject a project because a role is absent.
 - Treat root `project.md`, `Memory/`, `Attention/`, and `Audit/` as user-owned unless the legacy upgrade preflight proves old Steward ownership.
 
 Never create a standard directory beside an existing path already serving the same role. Stop on ambiguous supplied mappings.
+
+## MCP Discussion Documents
+
+`.oppen-project-steward/Discussion/` holds freely written discussion documents from any AI through MCP. MCP owns file creation, naming, updates, organization, and compliance. The skill and helper accept the directory and let local Codex read relevant documents; they do not manage its files or index.
+
+- Use a flat directory with `index.md` and names such as `D-000001__项目部署方式的讨论.md` or `D-000002__缺失值处理与敏感性分析.md`.
+- MCP assigns six-digit sequence numbers in creation order, starting at `000001`. Keep numbers stable; never renumber or reuse deleted numbers.
+- Choose a short, specific topic in the discussion's language. Keep dates, AI names, and processing status out of filenames; place them in the index or document when useful.
+- Continue updating the same document at the same path. Create another document for an independent discussion, without `_new`, `_final`, or version suffixes for revisions. If a rename is needed, MCP preserves the ID and updates index links.
+- MCP maintains `index.md` with document links, brief descriptions, and last-updated times. Its presentation and document bodies have no helper-enforced schema, required headings, or lifecycle fields.
+- Accept any discussion content, including ideas, drafts, code, quotations, unresolved questions, and competing approaches. Do not apply Canonical registration, frozen-content, parallel-copy, or Deliverable requirements to these materials.
+- Read as needed. Reading does not require a reply, implementation, closure, archiving, Attention, or Memory. Subsequent authorized project work follows the normal governance rules.
+- An absent or empty directory, missing or stale index, or MCP naming issue does not block project validation. MCP may create the directory on first use. Helper initialization, indexing, validation, and migration leave existing discussion files untouched; do not repair or rename them as routine governance work.
 
 ## Existing Projects
 

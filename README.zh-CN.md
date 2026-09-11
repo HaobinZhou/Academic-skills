@@ -62,11 +62,16 @@ $adhd-tasker
 帮我把这个任务拆解为可管理的步骤。
 ```
 
+调用 `oppen-project-steward` 或 `stepwise-r-project` 时，说 **“检查更新”** 或 **“check the update”** 即会检查 GitHub，有更新就安装；说 **“只检查，不更新”** 则只报告状态。此功能支持上面的 Git 克隆及软链接安装，会以快进方式更新共用的 `academic-skills` 仓库，保留并报告有冲突的本地修改。技能更新不会迁移它所管理的项目。
+
+项目初始化成功后，若 OppenSteward-MCP 可用且项目尚未发布，技能会询问是否发布；同意后才登记精确项目路径、刷新并验证访问。技能更新后，也会在 MCP 可用时核对它提供的技能说明。
+
 ## 测试
 
 ```bash
 python3 -m pytest stepwise-r-project/tests -q
 python3 -m pytest oppen-project-steward/tests -q
+python3 -m pytest tests/test_skill_updates.py -q
 ```
 
 ## 许可证

@@ -1,15 +1,34 @@
 ---
 name: stepwise-r-project
-description: Maintain strict, human-readable scientific R analysis projects with one canonical owner per definition, current publication-facing Results, current-only Audit evidence, Human Attention escalation, consequential Decision Memory, and audits for high-risk functions. Use when initializing, migrating, modifying, freezing, indexing, or validating an R analysis workspace, or when reviewing R code for readable line-by-line RStudio execution.
+description: Maintain strict, human-readable scientific R analysis projects with one canonical owner per definition, current publication-facing Results, current-only Audit evidence, Human Attention escalation, consequential Decision Memory, and audits for high-risk functions. Use when initializing, migrating, modifying, freezing, indexing, or validating an R analysis workspace, or when reviewing R code for readable line-by-line RStudio execution. Also use when asked to check for or install updates to this skill from its GitHub source.
 ---
 
 # Stepwise R Project
 
 Keep one current truth for humans. Keep artifact history in Git. Use AI discretion for scientific meaning, not project mechanics. If a decision does not require project-specific scientific or semantic context, let the helper make it deterministically.
 
+## Skill Updates
+
+When the user invokes this skill and says “check the update”, “check for updates”, “检查更新”, or “更新技能”, check its GitHub source and install an available update in the same task. This request authorizes the available skill update; do not ask again merely because a newer commit exists. If the user explicitly says “check only”, “只检查，不更新”, or equivalent, only report availability.
+
+Run the bundled updater with the active Python 3 interpreter and the **absolute path of this installed skill**:
+
+```text
+python ABSOLUTE_SKILL_PATH/scripts/update_skill.py --apply
+python ABSOLUTE_SKILL_PATH/scripts/update_skill.py --check
+```
+
+- Use `--apply` for the default check-and-update request and `--check` for an explicit read-only check. On Windows, `py -3` is also suitable. Python and Git must be available.
+- The source is [HaobinZhou/academic-skills](https://github.com/HaobinZhou/academic-skills), directory `stepwise-r-project`. The updater resolves GitHub's current default branch and pins its commit; it never guesses a version from governance markers such as v3 or 3.1.
+- This supports the repository's documented Git clone installation, including symlinked skills. It resolves this skill's location independently of the working project. A shared checkout updates **all upstream changed paths in academic-skills**, including other skills; report that scope. If the user restricts changes to only one skill, do not use the shared-checkout updater.
+- Checks may fetch Git objects and metadata but do not change installed files or the local branch. Apply uses only a fast-forward, preserves unrelated dirty work, and blocks overlapping tracked, staged, untracked, or ignored files. Never reset, force, stash, rebase, or discard local changes to obtain an update. For a copied installation, source mismatch, divergence, detached HEAD, network failure, or conflict, report the concrete blocker and preserve the installation; do not claim it is current.
+- Report `UP_TO_DATE`, `UPDATE_AVAILABLE`, `UPDATED`, `LOCAL_AHEAD`, or `UPDATE_BLOCKED`, the before/upstream/after commits when available, and changed paths or conflicts. `LOCAL_AHEAD` means local commits are ahead of upstream and no downgrade was performed. After `UPDATED`, reread the installed `SKILL.md` before using its new instructions.
+- Skill maintenance uses this workflow directly. It does not require initializing, indexing, or migrating the working R project, and does not rerun analyses. Scientific definitions, R/Data/Results/Audit, and governance migrations remain separate authorized work under the normal workflow below.
+- After `UPDATED`, if OppenSteward-MCP is available, follow the skill-guide refresh check in [MCP publication and refresh](references/mcp-publication.md).
+
 ## Core Workflow
 
-1. Resolve the target before writing. Inspect `project.md`, relevant canonical sources, R code, Results, Audit, tests, relevant active Attention, and only relevant Decision Memory identified through `Memory/index.md`.
+1. Resolve the target before writing. Inspect `project.md`, relevant canonical sources, R code, Results, Audit, tests, relevant active Attention, and only relevant Decision Memory identified through `Memory/index.md`. Read relevant MCP discussion documents as needed, using `Discussion/index.md` when available.
 2. Treat the default budget for new Markdown documents as zero. Search the canonical registry and existing documents first.
 3. Classify the project as v3, migration required, migration blocked but recoverable, unmanaged, or damaged. Run `init` only for a new unmanaged project; never use it as migration.
 4. Resolve one current authority for every scientific definition and cross-script contract. Stop on conflicting owners or ambiguous directory aliases.
@@ -17,6 +36,7 @@ Keep one current truth for humans. Keep artifact history in Git. Use AI discreti
 6. Route current human deliverables to Results and machine verification to Audit. Publish only after staging validation and atomic promotion.
 7. Apply the Decision Memory counterfactual test and Human Attention trigger. Do not create either merely because a task ended.
 8. Run relevant R, unit, and registered contract tests; run `index`; then require `validate` to exit zero.
+9. After successful `init`, check OppenSteward-MCP availability and whether this exact project root is published. If available and unpublished, ask whether the user wants to publish it; register it only after consent. After changes to an already-published project, refresh and verify its MCP view. Follow [MCP publication and refresh](references/mcp-publication.md); local validation alone does not prove publication.
 
 ## Existing v2 Projects
 
@@ -45,6 +65,19 @@ For already-v3 projects, `migrate --check` and repeated `--apply` perform no mig
 - Decision Memory explains why a consequential design decision happened.
 
 Never route verification to Memory, unresolved risk to Memory, decision rationale to Audit, or current definitions to history records.
+
+## MCP Discussion Documents
+
+`Discussion/` at the project root holds freely written discussion documents from any AI through MCP. MCP owns file creation, naming, updates, organization, and compliance. The skill and helper accept the directory and let local Codex read relevant documents; they do not manage its files or index.
+
+- Use a flat directory with `index.md` and names such as `D-000001__项目部署方式的讨论.md` or `D-000002__缺失值处理与敏感性分析.md`.
+- MCP assigns six-digit sequence numbers in creation order, starting at `000001`. Keep numbers stable; never renumber or reuse deleted numbers.
+- Choose a short, specific topic in the discussion's language. Keep dates, AI names, and processing status out of filenames; place them in the index or document when useful.
+- Continue updating the same document at the same path. Create another document for an independent discussion, without `_new`, `_final`, or version suffixes for revisions. If a rename is needed, MCP preserves the ID and updates index links.
+- MCP maintains `index.md` with document links, brief descriptions, and last-updated times. Its presentation and document bodies have no helper-enforced schema, required headings, or lifecycle fields.
+- Accept any discussion content, including ideas, drafts, code, quotations, unresolved questions, and competing approaches. Exempt these materials from the new-Markdown budget, Canonical registration, frozen-content, parallel-copy, and Result requirements.
+- Read as needed. Reading does not require a reply, implementation, closure, archiving, Attention, or Memory. Subsequent authorized project work follows the normal governance rules.
+- An absent or empty directory, missing or stale index, or MCP naming issue does not block project validation. MCP may create the directory on first use. Helper initialization, indexing, validation, and migration leave existing discussion files untouched; do not repair or rename them as routine governance work.
 
 ## Canonical Ownership
 

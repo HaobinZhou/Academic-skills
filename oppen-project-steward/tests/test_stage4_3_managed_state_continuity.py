@@ -154,6 +154,69 @@ class Stage43ManagedStateContinuityTestCase(unittest.TestCase):
         self.assertTrue(entry.is_file())
         self.assertEqual(steward.validate_project(empty).status, "MANAGED_READY")
 
+    def test_mcp_discussion_writes_preserve_governance_continuity(self) -> None:
+        self.existing_project()
+        self.initialize_git()
+        directory = f"{steward.STEWARD_NAMESPACE}/Discussion"
+        baseline_path = steward.managed_state_path(self.root)
+        baseline_before = baseline_path.read_bytes()
+        document = self.write(
+            f"{directory}/D-000001__项目部署方式的讨论.md",
+            "# 随意讨论\nStatus: frozen\nStatus: brainstorming\nTODO: 比较方案。\n",
+        )
+        self.assertEqual(steward.validate_project(self.root).status, "MANAGED_READY")
+        index = self.write(
+            f"{directory}/index.md",
+            "自由格式的 MCP 索引；[尚未同步](D-000002__待补充.md)\n",
+        )
+        self.git("add", directory)
+        document.write_text("新增建议，没有固定字段。\n", encoding="utf-8")
+        self.write(f"{directory}/draft_old.md", "MCP naming repairs are external.\n")
+        before = {
+            path: path.read_bytes()
+            for path in (self.root / directory).rglob("*")
+            if path.is_file()
+        }
+        git_before = self.git("status", "--porcelain", "--", directory).stdout
+
+        steward.refresh_index(self.root)
+        self.assertEqual(baseline_path.read_bytes(), baseline_before)
+        steward.add_memory(self.root, self.memory_payload("Keep governance operational"))
+        self.assertEqual(steward.validate_project(self.root).status, "MANAGED_READY")
+        self.assertEqual({path: path.read_bytes() for path in before}, before)
+        self.assertEqual(
+            self.git("status", "--porcelain", "--", directory).stdout, git_before
+        )
+        self.assertFalse(
+            any(path.startswith("Discussion/") for path in steward.load_managed_state(self.root).files)
+        )
+
+        document.rename(document.with_name("D-000001__部署选择.md"))
+        index.unlink()
+        self.assertEqual(steward.validate_project(self.root).status, "MANAGED_READY")
+
+    def test_optional_discussion_is_not_created_or_indexed_by_helper(self) -> None:
+        self.existing_project()
+        directory = self.root / steward.STEWARD_NAMESPACE / "Discussion"
+        self.assertFalse(directory.exists())
+        self.assertEqual(steward.validate_project(self.root).status, "MANAGED_READY")
+        directory.mkdir()
+        steward.refresh_index(self.root)
+        self.assertEqual(steward.validate_project(self.root).status, "MANAGED_READY")
+        self.assertEqual(list(directory.iterdir()), [])
+
+    def test_discussion_exemption_does_not_hide_managed_drift(self) -> None:
+        self.existing_project()
+        self.write(
+            f"{steward.STEWARD_NAMESPACE}/Discussion/D-000001__任意讨论.md", "Ideas\n"
+        )
+        memory = steward.add_memory(self.root, self.memory_payload("Original decision"))
+        memory.write_text(memory.read_text(encoding="utf-8") + "unexplained drift\n")
+        report = steward.validate_project(self.root)
+        self.assertTrue(any(item.code == "MANAGED_STATE_CONFLICT" for item in report.blockers))
+        with self.assertRaises(steward.RecoverableBlocker):
+            steward.refresh_index(self.root)
+
     def test_git_untracked_staged_and_committed_states_are_equivalent(self) -> None:
         for state in ("untracked", "staged", "committed", "committed-then-staged"):
             with self.subTest(state=state):

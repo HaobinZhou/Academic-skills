@@ -56,6 +56,7 @@ ROLE_ALIASES = {
 MEMORY_ALIASES = ("Memory", "memory")
 MEMORY_DIRECTORY = "Memory"
 ATTENTION_DIRECTORY = "Attention"
+DISCUSSION_DIRECTORY = "Discussion"
 ENTRY_DIRECTORY = "entries"
 MEMORY_ID_PATTERN = re.compile(r"^M-[0-9]{4,}$")
 ATTENTION_ID_PATTERN = re.compile(r"^A-[0-9]{4,}$")
@@ -2819,6 +2820,9 @@ def validate_unregistered_protocols(
         current = Path(current_root)
         retained_directories: list[str] = []
         for dirname in dirnames:
+            # Only the root MCP directory is exempt, not every folder with this name.
+            if current == root and dirname == DISCUSSION_DIRECTORY:
+                continue
             resolved = (current / dirname).resolve()
             if any(
                 resolved == excluded or excluded in resolved.parents
@@ -3268,6 +3272,8 @@ def validate_parallel_copies(root: Path, report: ValidationReport) -> None:
     for current_root, dirnames, filenames in os.walk(root):
         dirnames[:] = [dirname for dirname in dirnames if dirname not in excluded]
         current_path = Path(current_root)
+        if current_path == root:
+            dirnames[:] = [name for name in dirnames if name != DISCUSSION_DIRECTORY]
         for filename in filenames:
             path = current_path / filename
             if path.suffix.lower() not in {".md", ".html", ".qmd", ".rmd"}:

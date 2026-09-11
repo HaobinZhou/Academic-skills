@@ -31,6 +31,7 @@ except ImportError:  # pragma: no cover - unavailable on POSIX.
 
 SCHEMA_MARKER = "<!-- oppen-project-steward:v3 -->"
 STEWARD_NAMESPACE = ".oppen-project-steward"
+DISCUSSION_DIRECTORY = "Discussion"
 REGISTRY_NAME = "registry.md"
 MANAGED_STATE_NAME = ".managed-state.json"
 MANAGED_STATE_SCHEMA_VERSION = 1
@@ -952,6 +953,7 @@ def managed_state_path(root: Path) -> Path:
 
 
 def is_managed_control_relative(relative: PurePosixPath) -> bool:
+    # MCP-owned Discussion files and their index never enter the helper baseline.
     if relative == PurePosixPath(REGISTRY_NAME):
         return True
     if relative.parts and relative.parts[0] in {"Memory", "Attention"}:
@@ -4208,6 +4210,7 @@ def validate_namespace_topology(root: Path, report: ValidationReport) -> None:
         "Memory",
         "Attention",
         "Audit",
+        DISCUSSION_DIRECTORY,  # Optional; MCP owns its contents and index.
         ".DS_Store",
     }
     unexpected = [

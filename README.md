@@ -62,11 +62,16 @@ $adhd-tasker
 Help me break this task into manageable steps.
 ```
 
+For either `oppen-project-steward` or `stepwise-r-project`, say **“check the update”** or **“检查更新”** to check GitHub and install an available update. Say **“check only”** to leave the installation unchanged. This supports the Git clone/symlink installation above and fast-forwards the shared `academic-skills` checkout; conflicting local changes are preserved and reported. Updating a skill does not migrate the project it manages.
+
+After successful project initialization, if OppenSteward-MCP is available and the project is unpublished, the skill asks whether to publish it. With consent, it registers the exact project root, refreshes MCP, and verifies access. Skill updates also verify the guide exposed by MCP when available.
+
 ## Tests
 
 ```bash
 python3 -m pytest stepwise-r-project/tests -q
 python3 -m pytest oppen-project-steward/tests -q
+python3 -m pytest tests/test_skill_updates.py -q
 ```
 
 ## License

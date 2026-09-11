@@ -1122,6 +1122,81 @@ pass
         report = stepwise.validate_project(self.root)
         self.assertTrue(any("old/backup/versioned" in error for error in report.errors))
 
+    def test_mcp_discussion_content_and_index_are_left_untouched(self) -> None:
+        self.register_protocol()
+        self.write(
+            "Discussion/D-000001__缺失值处理与敏感性分析.md",
+            "# 讨论草稿\nStatus: frozen\nStatus: brainstorming\nTODO: 比较方法。\n",
+        )
+        self.write("Discussion/protocol.md", "An alternative under discussion.\n")
+        self.write("Discussion/protocol_20260905.md", "MCP owns filename compliance.\n")
+        self.write(
+            "Discussion/notes/draft_old.qmd",
+            "Status: frozen\nUnresolved questions and arbitrary quotations.\n",
+        )
+        report = stepwise.validate_project(self.root)
+        self.assertTrue(report.ok, report.errors)
+        self.write("Discussion/index.md", "自由格式；[待同步](missing.md)\n")
+        before = {
+            path: path.read_bytes()
+            for path in (self.root / "Discussion").rglob("*")
+            if path.is_file()
+        }
+
+        stepwise.add_decision_memory(self.root, self.memory_payload())
+        stepwise.refresh_index(self.root)
+        report = stepwise.validate_project(self.root)
+        self.assertTrue(report.ok, report.errors)
+        after = {
+            path: path.read_bytes()
+            for path in (self.root / "Discussion").rglob("*")
+            if path.is_file()
+        }
+        self.assertEqual(after, before)
+
+    def test_discussion_exemption_is_limited_to_project_root(self) -> None:
+        self.write("Discussion/D-000001__方法草稿.md", "Status: frozen\nTODO: review\n")
+        self.write("docs/Discussion/protocol_old.md", "Status: frozen\nTODO: resolve\n")
+        report = stepwise.validate_project(self.root)
+        self.assertTrue(
+            any("not registered as a canonical source: docs/Discussion/" in error for error in report.errors)
+        )
+        self.assertTrue(
+            any("Parallel old/backup/versioned" in error and "docs/Discussion/" in error for error in report.errors)
+        )
+
+    def test_optional_discussion_is_not_created_or_indexed_by_helper(self) -> None:
+        directory = self.root / "Discussion"
+        self.assertFalse(directory.exists())
+        self.assertTrue(stepwise.validate_project(self.root).ok)
+        directory.mkdir()
+        stepwise.refresh_index(self.root)
+        report = stepwise.validate_project(self.root)
+        self.assertTrue(report.ok, report.errors)
+        self.assertEqual(list(directory.iterdir()), [])
+
+    def test_migration_preserves_mcp_discussion_and_its_dirty_git_state(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self.make_v2_project(Path(temporary) / "legacy")
+            directory = root / "Discussion"
+            directory.mkdir()
+            document = directory / "D-000001__研究方案讨论.md"
+            document.write_text("Status: frozen\nTODO: discuss\n", encoding="utf-8")
+            self.initialize_git(root)
+            document.write_text("Status: undecided\n更多想法。\n", encoding="utf-8")
+            (directory / "draft_old.md").write_text("MCP draft\n", encoding="utf-8")
+            before = {path: path.read_bytes() for path in directory.iterdir()}
+            git_command = ["git", "-C", str(root), "status", "--porcelain", "--", "Discussion"]
+            git_before = subprocess.check_output(git_command)
+            self.assertEqual(stepwise.migration_preflight(root)["state"], "MIGRATION_REQUIRED")
+
+            stepwise.migration_apply(root, {"legacy_memory": []})
+
+            report = stepwise.validate_project(root)
+            self.assertTrue(report.ok, report.errors)
+            self.assertEqual({path: path.read_bytes() for path in directory.iterdir()}, before)
+            self.assertEqual(subprocess.check_output(git_command), git_before)
+
     def test_validate_detects_stale_script_index(self) -> None:
         self.write("R/01_analysis.R", "# Current analysis\n")
         report = stepwise.validate_project(self.root)
