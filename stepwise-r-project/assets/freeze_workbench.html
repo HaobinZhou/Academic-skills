@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stepwise R · 冻结口径工作台</title>
+</head>
+<body style="margin:0;background:#f5f4fb">
+<div id="sw-freeze-v2" class="sw2-preview">
+  <main class="sw2-app" aria-label="冻结口径工作台">
+    <header class="sw2-header">
+      <div class="sw2-brand-block">
+        <h1 class="sw2-brand"><span class="sw2-logo">S</span><span>Stepwise R <span class="sw2-brand-light">/ 冻结口径</span></span></h1>
+        <div class="sw2-overline">第 <span id="sw2-round">1</span> 轮</div>
+      </div>
+      <section class="sw2-summary" aria-label="问题总览">
+      <div class="sw2-summary-item sw2-total"><strong id="sw2-total">0</strong><span>当前已识别</span></div>
+      <div class="sw2-summary-item sw2-open"><strong id="sw2-open">0</strong><span>待填写</span></div>
+      <div class="sw2-summary-item sw2-talk"><strong id="sw2-talk">0</strong><span>讨论中</span></div>
+      <div class="sw2-summary-item sw2-answered"><strong id="sw2-answered">0</strong><span>已回答</span></div>
+      </section>
+      <div class="sw2-hero-actions">
+        <button class="sw2-button sw2-button-light" type="button" data-action="refresh" id="sw2-update">刷新项目记录</button>
+        <button class="sw2-button sw2-button-light" type="button" data-action="save-all" id="sw2-save-all">保存本轮<span id="sw2-draft-count" class="sw2-draft-count" hidden></span></button>
+        <button class="sw2-button sw2-button-yellow" type="button" data-action="handoff">生成手动交接摘要</button>
+      </div>
+    </header>
+    <nav class="sw2-groups" aria-label="问题领域">
+      <div class="sw2-column-title">问题领域</div>
+      <div id="sw2-group-list"></div>
+    </nav>
+    <div class="sw2-workspace">
+      <section class="sw2-list-column" aria-label="全部问题列表">
+        <div class="sw2-list-head"><div><strong id="sw2-list-heading">全部问题</strong><span id="sw2-visible">0 项</span></div><label class="sw2-search-wrap"><span class="sw2-sr-only">搜索问题</span><input id="sw2-search" type="search" placeholder="搜索问题或编号"></label></div>
+        <div id="sw2-question-list" class="sw2-question-list"></div>
+      </section>
+      <section id="sw2-detail" class="sw2-detail" aria-label="问题答复与讨论"></section>
+      <aside id="sw2-example" class="sw2-example" aria-label="复杂口径实例推演"></aside>
+    </div>
+    <div id="sw2-notice" class="sw2-notice" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+    <footer class="sw2-footer"><span id="sw2-draft-label">无未保存修改</span><span id="sw2-save-label">正在读取项目记录</span></footer>
+    <div class="sw2-overlay" id="sw2-overlay" hidden>
+      <div class="sw2-dialog" role="dialog" aria-modal="true" aria-labelledby="sw2-dialog-title" tabindex="-1">
+        <div class="sw2-dialog-head"><h2 id="sw2-dialog-title">交接摘要</h2><button type="button" class="sw2-close" data-action="close" aria-label="关闭">×</button></div>
+        <div id="sw2-handoff-pending" hidden></div>
+        <textarea id="sw2-handoff-text" readonly aria-label="交接摘要"></textarea>
+        <div id="sw2-handoff-status" class="sw2-action-status" role="status" aria-live="polite" hidden></div>
+        <div class="sw2-dialog-actions"><span id="sw2-copy-status"></span><div class="sw2-action-pair"><button type="button" class="sw2-button sw2-button-outline" data-action="handoff-saved" hidden>仅交接已保存内容</button><button type="button" class="sw2-button sw2-button-purple" data-action="handoff-save" hidden>保存全部并生成摘要</button><button type="button" class="sw2-button sw2-button-purple" data-action="copy">复制摘要</button></div></div>
+      </div>
+    </div>
+  </main>
+</div>
+<style>
+  #sw-freeze-v2 { --sw-text: clamp(18px, .75vw, 24px); --sw-meta: clamp(14px, .52vw, 17px); --sw-control: clamp(16px, .57vw, 19px); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: var(--sw-text); line-height: 1.6; color: #21355e; height: 100dvh; }
+  #sw-freeze-v2 * { box-sizing: border-box; }
+  #sw-freeze-v2 .sw2-app { position: relative; display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: clip; background: #fffdf9; }
+  #sw-freeze-v2 .sw2-header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 20px; flex: 0 0 auto; padding: 14px 24px; color: #fff; background: linear-gradient(110deg, #3054d7 0%, #7050dd 53%, #f05292 100%); }
+  #sw-freeze-v2 .sw2-brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: clamp(17px, .6vw, 21px); white-space: nowrap; }
+  #sw-freeze-v2 .sw2-logo { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: #ffe75f; color: #3545b8; font-size: 23px; font-weight: 850; flex: 0 0 auto; }
+  #sw-freeze-v2 .sw2-brand-light { font-weight: 650; }
+  #sw-freeze-v2 .sw2-overline { margin-top: 6px; font-size: var(--sw-meta); font-weight: 700; opacity: .95; }
+  #sw-freeze-v2 h1 { margin: 0; color: inherit; line-height: 1.35; }
+  #sw-freeze-v2 .sw2-hero-actions { display: flex; gap: 8px; align-items: center; }
+  #sw-freeze-v2 .sw2-button { border: 0; border-radius: 10px; padding: 11px 16px; font: inherit; font-size: var(--sw-control); font-weight: 750; line-height: 1.35; cursor: pointer; transition: background .15s, box-shadow .15s; }
+  #sw-freeze-v2 .sw2-hero-actions .sw2-button { white-space: nowrap; font-size: var(--sw-meta); padding: 11px 13px; }
+  #sw-freeze-v2 .sw2-button:hover { box-shadow: 0 4px 12px #4f41bd24; }
+  #sw-freeze-v2 .sw2-button:disabled { opacity: .6; cursor: default; }
+  #sw-freeze-v2 .sw2-button-light { color: #3444af; background: #fff; }
+  #sw-freeze-v2 .sw2-button-yellow { color: #453579; background: #ffe85c; }
+  #sw-freeze-v2 .sw2-button-purple { color: #fff; background: #6650db; }
+  #sw-freeze-v2 .sw2-button-outline { color: #5742bd; background: #fff; border: 1px solid #bfb1f3; }
+  #sw-freeze-v2 .sw2-button-coral { color: #fff; background: #ed4f85; }
+  #sw-freeze-v2 .sw2-summary { display: flex; gap: 8px; align-items: stretch; justify-self: end; }
+  #sw-freeze-v2 .sw2-summary-item { display: flex; align-items: center; gap: 9px; padding: 12px 13px; border-radius: 12px; white-space: nowrap; box-shadow: 0 2px 5px #3b26801a; }
+  #sw-freeze-v2 .sw2-summary-item strong { font-size: clamp(27px, 1vw, 34px); line-height: 1; font-weight: 850; }
+  #sw-freeze-v2 .sw2-summary-item span { font-size: var(--sw-meta); font-weight: 750; }
+  #sw-freeze-v2 .sw2-total { background: #e8edff; color: #3454ce; }
+  #sw-freeze-v2 .sw2-open { background: #fff0cf; color: #995008; }
+  #sw-freeze-v2 .sw2-talk { background: #ffe3ee; color: #bd2e67; }
+  #sw-freeze-v2 .sw2-answered { background: #d9faec; color: #087b5a; }
+  #sw-freeze-v2 .sw2-groups { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; padding: 10px 20px; background: #f3efff; border-bottom: 1px solid #e2dafa; }
+  #sw-freeze-v2 .sw2-column-title { color: #635387; font-size: var(--sw-meta); font-weight: 750; white-space: nowrap; }
+  #sw-freeze-v2 #sw2-group-list { display: flex; gap: 6px; overflow-x: auto; min-width: 0; scrollbar-width: thin; }
+  #sw-freeze-v2 .sw2-group { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; padding: 9px 13px; border: 1px solid transparent; border-radius: 10px; color: #424775; background: transparent; text-align: left; font: inherit; font-size: var(--sw-meta); font-weight: 700; cursor: pointer; white-space: nowrap; }
+  #sw-freeze-v2 .sw2-group[aria-current="true"] { background: #fff; color: #5941ca; border-color: #d8cef8; box-shadow: 0 3px 8px #6750b919; }
+  #sw-freeze-v2 .sw2-group small { color: #77748d; font-size: inherit; font-weight: 750; }
+  #sw-freeze-v2 .sw2-dot { width: 11px; height: 11px; border-radius: 50%; background: var(--group-color, #6255d7); flex: 0 0 auto; }
+  #sw-freeze-v2 .sw2-workspace { display: grid; grid-template-columns: clamp(280px, 18vw, 430px) minmax(340px, 1fr) minmax(400px, 42%); flex: 1 1 0; min-height: 0; overflow: clip; }
+  #sw-freeze-v2 .sw2-list-column { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: #fff; border-right: 1px solid #e6e4f1; }
+  #sw-freeze-v2 .sw2-list-head { display: grid; gap: 12px; padding: 18px; flex: 0 0 auto; border-bottom: 1px solid #ede9f5; }
+  #sw-freeze-v2 .sw2-list-head strong { display: block; font-size: clamp(20px, .72vw, 24px); color: #293d83; line-height: 1.35; }
+  #sw-freeze-v2 .sw2-list-head span { display: block; margin-top: 4px; font-size: var(--sw-meta); color: #677590; }
+  #sw-freeze-v2 .sw2-search-wrap { display: block; width: 100%; }
+  #sw-freeze-v2 .sw2-search-wrap input { width: 100%; border: 1px solid #d5d9ef; border-radius: 9px; background: #f8f9ff; color: #253b66; padding: 10px 12px; font: inherit; font-size: var(--sw-control); }
+  #sw-freeze-v2 .sw2-question-list { flex: 1 1 0; min-height: 0; overflow-y: auto; padding: 9px 10px 20px; scrollbar-width: thin; }
+  #sw-freeze-v2 .sw2-list-group-title { display: flex; align-items: center; gap: 8px; padding: 15px 10px 8px; color: #5f5c85; font-size: var(--sw-meta); font-weight: 800; }
+  #sw-freeze-v2 .sw2-question { display: block; width: 100%; margin: 4px 0; padding: 13px 12px 14px; border: 1px solid transparent; border-left: 4px solid transparent; border-radius: 10px; background: #fff; text-align: left; color: #253963; font: inherit; cursor: pointer; }
+  #sw-freeze-v2 .sw2-question:hover { background: #f7f5ff; }
+  #sw-freeze-v2 .sw2-question[aria-current="true"] { border-color: #c3b6fa; border-left-color: #7250e3; background: #f1ebff; }
+  #sw-freeze-v2 .sw2-question-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  #sw-freeze-v2 .sw2-question-id { color: #68608f; font-size: var(--sw-meta); font-weight: 650; }
+  #sw-freeze-v2 .sw2-question-name { display: block; margin-top: 7px; font-size: var(--sw-text); font-weight: 700; line-height: 1.5; }
+  #sw-freeze-v2 .sw2-pill { display: inline-block; padding: 4px 8px; border-radius: 7px; font-size: var(--sw-meta); font-weight: 750; white-space: nowrap; }
+  #sw-freeze-v2 .sw2-pill-open { color: #99540e; background: #ffedcd; }
+  #sw-freeze-v2 .sw2-pill-talk { color: #ba2d65; background: #ffe1ec; }
+  #sw-freeze-v2 .sw2-pill-answered { color: #087a59; background: #d5f7e8; }
+  #sw-freeze-v2 .sw2-detail { min-width: 0; min-height: 0; overflow-y: auto; padding: 24px clamp(22px, 1.3vw, 40px) 30px; background: #fffdfb; scrollbar-width: thin; }
+  #sw-freeze-v2 .sw2-detail-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  #sw-freeze-v2 .sw2-detail-code { color: #6850ce; font-size: var(--sw-meta); font-weight: 800; }
+  #sw-freeze-v2 .sw2-detail h2 { color: #263b84; font-size: clamp(28px, 1.2vw, 38px); line-height: 1.4; margin: 6px 0 18px; font-weight: 800; }
+  #sw-freeze-v2 .sw2-evidence { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); gap: 12px; margin-bottom: 22px; }
+  #sw-freeze-v2 .sw2-context, #sw-freeze-v2 .sw2-source { padding: 14px 16px; border-radius: 10px; font-size: var(--sw-text); line-height: 1.6; overflow-wrap: anywhere; }
+  #sw-freeze-v2 .sw2-context { border-left: 4px solid #21bbcf; background: #e7faff; color: #205977; }
+  #sw-freeze-v2 .sw2-source { border-left: 4px solid #f3ac30; background: #fff3d4; color: #775324; }
+  #sw-freeze-v2 .sw2-context strong, #sw-freeze-v2 .sw2-source strong { display: block; margin-bottom: 6px; color: #244a74; font-size: var(--sw-control); font-weight: 800; }
+  #sw-freeze-v2 .sw2-source strong { color: #945b13; }
+  #sw-freeze-v2 .sw2-section-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 23px 0 11px; font-size: clamp(20px, .82vw, 27px); font-weight: 800; color: #4c3aa7; }
+  #sw-freeze-v2 .sw2-section-title small { color: #69758c; font-size: var(--sw-meta); font-weight: 500; }
+  #sw-freeze-v2 .sw2-ai-note { padding: 16px 18px; border: 1px solid #e0d4fb; border-radius: 11px; background: #efe8ff; color: #534184; font-size: var(--sw-text); line-height: 1.65; white-space: pre-wrap; }
+  #sw-freeze-v2 .sw2-suggestions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }
+  #sw-freeze-v2 .sw2-suggestion { padding: 8px 12px; border: 1px solid #cbbcf0; border-radius: 99px; color: #6040b8; background: #fff; font: inherit; font-size: var(--sw-control); cursor: pointer; }
+  #sw-freeze-v2 .sw2-answer, #sw-freeze-v2 .sw2-message-input { display: block; width: 100%; resize: vertical; padding: 15px 16px; border: 1px solid #c9d1ec; border-radius: 11px; background: #fff; color: #21355f; font: inherit; font-size: var(--sw-text); line-height: 1.65; }
+  #sw-freeze-v2 .sw2-answer { min-height: clamp(125px, 13vh, 220px); }
+  #sw-freeze-v2 .sw2-message-input { min-height: clamp(105px, 10vh, 170px); }
+  #sw-freeze-v2 textarea::placeholder { color: #77839a; opacity: 1; }
+  #sw-freeze-v2 .sw2-answer-actions, #sw-freeze-v2 .sw2-message-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+  #sw-freeze-v2 .sw2-answer-actions span, #sw-freeze-v2 .sw2-message-actions span { color: #65738b; font-size: var(--sw-meta); line-height: 1.5; }
+  #sw-freeze-v2 .sw2-action-pair { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; flex: 0 0 auto; }
+  #sw-freeze-v2 .sw2-thread { display: grid; gap: 12px; margin: 12px 0 15px; }
+  #sw-freeze-v2 .sw2-bubble { max-width: 94%; padding: 14px 16px; border-radius: 12px; font-size: var(--sw-text); line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+  #sw-freeze-v2 .sw2-bubble-codex { justify-self: start; background: #e7efff; color: #334d8d; border-top-left-radius: 3px; }
+  #sw-freeze-v2 .sw2-bubble-user { justify-self: end; background: #ffe8d9; color: #8a4d25; border-top-right-radius: 3px; }
+  #sw-freeze-v2 .sw2-bubble-head { display: flex; justify-content: space-between; gap: 12px; font-size: var(--sw-meta); font-weight: 750; margin-bottom: 6px; }
+  #sw-freeze-v2 .sw2-empty { color: #68758c; font-size: var(--sw-text); line-height: 1.6; margin: 12px 0; }
+  #sw-freeze-v2 .sw2-example { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow-y: auto; padding: 24px clamp(20px, 1.1vw, 34px); border-left: 1px solid #eddcaa; background: #fff9e8; scrollbar-width: thin; }
+  #sw-freeze-v2 .sw2-example-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  #sw-freeze-v2 .sw2-example-kicker { color: #a66310; font-size: var(--sw-control); font-weight: 800; }
+  #sw-freeze-v2 .sw2-example-scale { display: flex; align-items: center; gap: 7px; color: #735797; font-size: var(--sw-meta); white-space: nowrap; }
+  #sw-freeze-v2 .sw2-example-scale select { padding: 6px 8px; border: 1px solid #cdbde8; border-radius: 8px; background: #f4edff; color: #6642b2; font: inherit; font-weight: 750; cursor: pointer; }
+  #sw-freeze-v2 .sw2-example h2 { color: #554098; font-size: clamp(26px, 1.05vw, 34px); line-height: 1.4; margin: 16px 0 10px; }
+  #sw-freeze-v2 .sw2-example p { color: #665c75; font-size: var(--sw-text); line-height: 1.6; margin: 0 0 18px; }
+  #sw-freeze-v2 .sw2-example-viewport { position: relative; flex: 1 0 350px; min-height: 350px; overflow: hidden; border: 1px solid #decfa7; border-radius: 12px; background: #fff; }
+  #sw-freeze-v2 .sw2-example iframe { position: absolute; inset: 0; display: block; width: calc(100% / var(--example-scale, 1.5)); height: calc(100% / var(--example-scale, 1.5)); border: 0; background: #fff; transform: scale(var(--example-scale, 1.5)); transform-origin: top left; }
+  #sw-freeze-v2 .sw2-example-plain { border: 1px dashed #c9b378; border-radius: 12px; padding: 22px; background: #fffdf5; color: #73606b; font-size: var(--sw-text); line-height: 1.65; }
+  #sw-freeze-v2 .sw2-example-note { margin: 16px 0; padding: 12px 15px; border-radius: 10px; background: #ffedbb; color: #805912; font-size: var(--sw-meta); line-height: 1.55; }
+  #sw-freeze-v2 .sw2-example .sw2-button { width: 100%; margin-top: 12px; }
+  #sw-freeze-v2 .sw2-example details { margin-top: 4px; color: #665285; font-size: var(--sw-meta); }
+  #sw-freeze-v2 .sw2-example summary { cursor: pointer; }
+  #sw-freeze-v2 .sw2-example pre { max-height: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border-radius: 9px; padding: 12px; background: #efe6ff; color: #51418a; font-size: var(--sw-meta); }
+  #sw-freeze-v2 .sw2-notice { position: fixed; z-index: 30; top: 20px; right: 20px; width: min(510px, calc(100vw - 40px)); padding: 16px 20px; border: 1px solid #8bd9bb; border-left: 5px solid #1aaf7d; border-radius: 12px; background: #f3fff9; color: #126a50; box-shadow: 0 12px 34px #1e326c33; font-size: var(--sw-control); font-weight: 700; line-height: 1.5; }
+  #sw-freeze-v2 .sw2-notice[data-kind="error"] { border-color: #f5a7b6; border-left-color: #e45176; background: #fff3f5; color: #9c3050; }
+  #sw-freeze-v2 .sw2-notice[data-kind="info"] { border-color: #b4bafa; border-left-color: #6455d7; background: #f5f3ff; color: #5245a5; }
+  #sw-freeze-v2 .sw2-notice[hidden] { display: none; }
+  #sw-freeze-v2 .sw2-action-status { margin-top: 11px; padding: 11px 14px; border-radius: 9px; background: #e4f8ed; color: #176e51; font-size: var(--sw-meta); font-weight: 700; line-height: 1.5; }
+  #sw-freeze-v2 .sw2-action-status[data-kind="error"] { background: #fff0f3; color: #a83755; }
+  #sw-freeze-v2 .sw2-action-status[data-kind="info"] { background: #f1efff; color: #5549a9; }
+  #sw-freeze-v2 .sw2-action-status[hidden] { display: none; }
+  #sw-freeze-v2 .sw2-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex: 0 0 auto; padding: 9px 22px; border-top: 1px solid #e8e3df; background: #fffaf1; color: #686784; font-size: var(--sw-meta); line-height: 1.5; }
+  #sw-freeze-v2 .sw2-footer #sw2-save-label { color: #087b5f; white-space: nowrap; font-weight: 750; }
+  #sw-freeze-v2 .sw2-footer #sw2-save-label[data-kind="error"] { color: #a83755; white-space: normal; }
+  #sw-freeze-v2 .sw2-draft-count, #sw-freeze-v2 .sw2-draft-tag { display: inline-block; margin-left: 7px; padding: 2px 7px; border-radius: 6px; background: #ffe75f; color: #654006; font-size: var(--sw-meta); font-weight: 800; }
+  #sw-freeze-v2 [hidden] { display: none !important; }
+  #sw-freeze-v2 .sw2-conflict, #sw-freeze-v2 #sw2-handoff-pending { padding: 14px 16px; margin: 12px 0; border: 1px solid #f1b867; border-radius: 10px; background: #fff3d4; color: #714512; }
+  #sw-freeze-v2 .sw2-conflict p { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 190px; overflow: auto; }
+  #sw-freeze-v2 #sw2-handoff-pending ul { padding-left: 24px; max-height: 34vh; overflow: auto; }
+  #sw-freeze-v2 .sw2-dialog-actions { flex-wrap: wrap; }
+  #sw-freeze-v2 .sw2-close:disabled { opacity: .5; }
+  #sw-freeze-v2 .sw2-overlay { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; padding: 24px; background: #1f24588a; }
+  #sw-freeze-v2 .sw2-overlay[hidden] { display: none; }
+  #sw-freeze-v2 .sw2-dialog { width: min(900px, 100%); max-height: calc(100dvh - 48px); overflow-y: auto; padding: 28px; border-radius: 16px; background: #fff; box-shadow: 0 24px 66px #1d235d4d; }
+  #sw-freeze-v2 .sw2-dialog-head { display: flex; justify-content: space-between; gap: 14px; }
+  #sw-freeze-v2 .sw2-dialog .sw2-overline { color: #6956cb; }
+  #sw-freeze-v2 .sw2-dialog h2 { margin: 5px 0 14px; color: #283c7b; font-size: 27px; line-height: 1.4; }
+  #sw-freeze-v2 .sw2-dialog p { margin: 0 0 16px; color: #5e6b85; font-size: var(--sw-text); }
+  #sw-freeze-v2 .sw2-close { align-self: start; border: 0; background: #f1edff; color: #6454c9; border-radius: 9px; width: 38px; height: 38px; font: inherit; font-size: 28px; cursor: pointer; }
+  #sw-freeze-v2 #sw2-handoff-text { width: 100%; height: min(45vh, 440px); resize: vertical; padding: 16px; border: 1px solid #cfd2ec; border-radius: 10px; background: #fafaff; color: #34436e; font: inherit; font-size: var(--sw-text); line-height: 1.6; }
+  #sw-freeze-v2 .sw2-dialog-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 15px; }
+  #sw-freeze-v2 .sw2-dialog-actions span { color: #66728a; font-size: var(--sw-meta); }
+  #sw-freeze-v2 .sw2-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+  #sw-freeze-v2 button:focus-visible, #sw-freeze-v2 textarea:focus-visible, #sw-freeze-v2 input:focus-visible, #sw-freeze-v2 select:focus-visible { outline: 3px solid #7654e0; outline-offset: 3px; }
+  @media (max-width: 1350px) {
+    #sw-freeze-v2 .sw2-header { grid-template-columns: minmax(0, 1fr) auto; gap: 12px 22px; }
+    #sw-freeze-v2 .sw2-brand-block { display: flex; align-items: center; gap: 20px; }
+    #sw-freeze-v2 .sw2-brand-block .sw2-overline { margin: 0; }
+    #sw-freeze-v2 .sw2-summary { grid-column: 2; grid-row: 1; }
+    #sw-freeze-v2 .sw2-hero-actions { grid-column: 1 / -1; grid-row: 2; justify-content: flex-end; }
+    #sw-freeze-v2 .sw2-summary-item { padding: 9px 12px; }
+  }
+  @media (max-width: 1199px) {
+    #sw-freeze-v2 { height: auto; min-height: 100dvh; }
+    #sw-freeze-v2 .sw2-app { height: auto; min-height: 100dvh; overflow: visible; }
+    #sw-freeze-v2 .sw2-header { display: flex; flex-wrap: wrap; gap: 15px 22px; }
+    #sw-freeze-v2 .sw2-brand-block { width: 100%; justify-content: space-between; }
+    #sw-freeze-v2 .sw2-hero-actions { margin-left: auto; }
+    #sw-freeze-v2 .sw2-workspace { grid-template-columns: 290px minmax(0, 1fr); flex: none; min-height: 700px; overflow: visible; }
+    #sw-freeze-v2 .sw2-detail { overflow: visible; }
+    #sw-freeze-v2 .sw2-question-list { max-height: 820px; flex: 1 1 auto; }
+    #sw-freeze-v2 .sw2-example { grid-column: 1 / -1; min-height: 680px; overflow: visible; border-left: 0; border-top: 1px solid #eddcaa; }
+    #sw-freeze-v2 .sw2-example-viewport { height: 480px; flex: none; }
+    #sw-freeze-v2 .sw2-footer { flex-wrap: wrap; }
+    #sw-freeze-v2 .sw2-overlay { position: fixed; }
+  }
+  @media (max-width: 680px) {
+    #sw-freeze-v2 .sw2-header { padding: 18px 16px; }
+    #sw-freeze-v2 .sw2-brand-block { flex-wrap: wrap; gap: 8px; }
+    #sw-freeze-v2 .sw2-brand { font-size: 16px; }
+    #sw-freeze-v2 .sw2-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; gap: 6px; }
+    #sw-freeze-v2 .sw2-summary-item { flex-direction: column; gap: 5px; padding: 11px 5px; }
+    #sw-freeze-v2 .sw2-summary-item span { font-size: 13px; }
+    #sw-freeze-v2 .sw2-hero-actions { width: 100%; margin: 0; }
+    #sw-freeze-v2 .sw2-hero-actions .sw2-button { flex: 1; }
+    #sw-freeze-v2 .sw2-groups { padding: 9px 12px; }
+    #sw-freeze-v2 .sw2-column-title { display: none; }
+    #sw-freeze-v2 .sw2-workspace { display: block; }
+    #sw-freeze-v2 .sw2-list-column { border-right: 0; border-bottom: 1px solid #e6e4f1; }
+    #sw-freeze-v2 .sw2-question-list { max-height: 300px; flex: none; }
+    #sw-freeze-v2 .sw2-detail { padding: 22px 16px 30px; }
+    #sw-freeze-v2 .sw2-section-title { flex-wrap: wrap; }
+    #sw-freeze-v2 .sw2-answer-actions, #sw-freeze-v2 .sw2-message-actions { flex-wrap: wrap; }
+    #sw-freeze-v2 .sw2-action-pair { width: 100%; }
+    #sw-freeze-v2 .sw2-example { padding: 22px 16px; }
+    #sw-freeze-v2 .sw2-example-head { flex-wrap: wrap; }
+    #sw-freeze-v2 .sw2-footer { padding: 12px 16px; }
+    #sw-freeze-v2 .sw2-footer #sw2-save-label { white-space: normal; }
+    #sw-freeze-v2 .sw2-dialog { padding: 20px; }
+    #sw-freeze-v2 .sw2-dialog-actions { flex-wrap: wrap; }
+  }
+</style>
+<script src="/workbench.js" defer></script>
+</body>
+</html>

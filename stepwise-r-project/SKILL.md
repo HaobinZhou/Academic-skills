@@ -1,6 +1,6 @@
 ---
 name: stepwise-r-project
-description: Maintain strict, human-readable scientific R analysis projects with one canonical owner per definition, current publication-facing Results, current-only Audit evidence, Human Attention escalation, consequential Decision Memory, and audits for high-risk functions. Use when initializing, migrating, modifying, freezing, indexing, or validating an R analysis workspace, or when reviewing R code for readable line-by-line RStudio execution. Also use when asked to check for or install updates to this skill from its GitHub source.
+description: Maintain strict, human-readable scientific R analysis projects with canonical ownership, Results, Audit, Human Attention and Decision Memory. Use for scientific freeze rounds and the temporary Freeze web workbench, or when initializing, migrating, modifying, indexing, validating or reviewing an R analysis workspace. Also use for skill update checks.
 ---
 
 # Stepwise R Project
@@ -78,6 +78,14 @@ Never route verification to Memory, unresolved risk to Memory, decision rational
 - Accept any discussion content, including ideas, drafts, code, quotations, unresolved questions, and competing approaches. Exempt these materials from the new-Markdown budget, Canonical registration, frozen-content, parallel-copy, and Result requirements.
 - Read as needed. Reading does not require a reply, implementation, closure, archiving, Attention, or Memory. Subsequent authorized project work follows the normal governance rules.
 - An absent or empty directory, missing or stale index, or MCP naming issue does not block project validation. MCP may create the directory on first use. Helper initialization, indexing, validation, and migration leave existing discussion files untouched; do not repair or rename them as routine governance work.
+
+## Freeze Workbench
+
+When the user asks to identify or resolve scientific definitions through the web workbench, read [Freeze workbench](references/freeze-workbench.md). Inspect the actual project before writing a question batch; enumerate **all questions currently identifiable** in one round, with project-specific reasons and source summaries. A round is not a fixed template. After the user responds, read the saved project records, keep unresolved discussion visible, reopen affected questions and add newly discovered questions in another batch. The user invokes Codex manually to continue; saving the page does not start an AI turn.
+
+`Freeze/` contains structured collaboration drafts, not current Canonical authority. User answers, AI positions, messages, and explanatory HTML examples have distinct fields and per-question revisions. Neither a user answer nor an MCP edit declares a definition frozen. Once the relevant scientific choices are confirmed, update the registered Canonical owner, R implementation and contract test together, then run the normal completion gate. The workbench must not write Canonical, Audit, Attention, or Decision Memory on behalf of a webpage or remote AI.
+
+The web process is temporary. Start it on request with `scripts/freeze_workbench.py start TARGET`; return its port and URL. Its default `127.0.0.1` listener can be forwarded by a proxy on the same host; use `--public-origin https://...` for a remote link. The default mode uses a random login link. When the user explicitly wants a directly shareable page without a login key, use `--no-auth`; anyone who reaches the forwarded address can read and edit the draft Freeze records. Use `--host 0.0.0.0` only for explicit direct network access. `stop TARGET` ends the web process while the project's records remain. Remote ChatGPT participates through the separately configured OppenSteward-MCP Freeze tools, not the temporary web port.
 
 ## Canonical Ownership
 

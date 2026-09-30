@@ -18,6 +18,12 @@ A collection of Codex skills I use for research, software projects, learning, an
 
 See each `SKILL.md` for full behavior and usage.
 
+### Stepwise R freeze workbench
+
+Ask Codex to open the freeze workbench for a scientific project. It lists all currently identifiable definition questions in one round, supports answers and ongoing discussion, and provides a separate area for HTML examples. Reviewers can save the whole round and generate a handoff summary before manually asking Codex to continue. New questions can be added as the discussion develops.
+
+The temporary page returns a port and supports forwarding; records stay in the project's `Freeze/` JSON and HTML files. The companion [OppenSteward-MCP](https://github.com/HaobinZhou/OppenSteward-MCP) can participate through dedicated, separately authorized Freeze tools. See [the workbench reference](./stepwise-r-project/references/freeze-workbench.md) for storage, access and operation details.
+
 ## Install
 
 ```bash

@@ -18,6 +18,12 @@
 
 每个 skill 的完整行为和使用方法请参阅对应的 `SKILL.md`。
 
+### Stepwise R 冻结口径工作台
+
+可要求 Codex 为科研项目开启冻结口径工作台。每轮一次列出当前能识别的全部问题，支持逐题答复、持续讨论，以及独立区域的 HTML 实例推演。审阅者可统一保存本轮、生成交接摘要，再手动通知 Codex 继续；讨论中发现的新问题可以动态追加。
+
+临时网页返回端口并支持转发，记录保存在项目 `Freeze/` 的 JSON 和 HTML 文件中。配套 [OppenSteward-MCP](https://github.com/HaobinZhou/OppenSteward-MCP) 可通过单独授权的 Freeze 工具参与。存储、访问和操作细节见[工作台说明](./stepwise-r-project/references/freeze-workbench.md)。
+
 ## 安装
 
 ```bash

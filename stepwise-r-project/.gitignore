@@ -6,3 +6,4 @@ __pycache__/
 .Ruserdata
 .quarto/
 *.html
+!assets/freeze_workbench.html
