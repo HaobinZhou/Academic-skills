@@ -90,6 +90,51 @@ def test_linked_workspace_is_rejected(store):
         store.add_questions([question("不能写到链接目标")], request_id="unsafe")
 
 
+def test_author_sources_persist_across_ai_edits_and_retries(store):
+    qid = store.add_questions([question("时间零点？")], request_id="codex-round", actor="codex")["ids"][0]
+    with pytest.raises(FreezeError, match="different questions"):
+        store.add_questions([question("时间零点？")], request_id="codex-round", actor="chatgpt")
+    q = store.read_question(qid)
+    assert q["created_by"] == q["ai_position_by"] == "codex"
+    q = store.change(qid, "answer", "首次处方日", expected_revision=q["revision"],
+                     request_id="human-answer", actor="user")
+    q = store.change(qid, "ai_position", "建议核对配药日期", expected_revision=q["revision"],
+                     request_id="chatgpt-opinion", actor="chatgpt")
+    assert q["ai_position_by"] == "chatgpt" and q["ai_position_at"]
+    assert q["messages"][-1]["actor"] == "chatgpt"
+    assert store.change(qid, "ai_position", "建议核对配药日期", expected_revision=1,
+                        request_id="chatgpt-opinion", actor="chatgpt")["replayed"]
+    with pytest.raises(FreezeError, match="different content"):
+        store.change(qid, "ai_position", "建议核对配药日期", expected_revision=1,
+                     request_id="chatgpt-opinion", actor="codex")
+    q = store.change(qid, "comment", "Codex 已核对实现", expected_revision=q["revision"],
+                     request_id="codex-comment", actor="codex")
+    q = store.change(qid, "example", {"title": "日期示例", "summary": "两种起点", "html": "<p>时间线</p>"},
+                     expected_revision=q["revision"], request_id="chatgpt-example", actor="chatgpt")
+    saved = FreezeStore(store.project).read_question(qid)
+    assert saved["created_by"] == "codex" and saved["ai_position_by"] == "chatgpt"
+    assert [m["actor"] for m in saved["messages"]] == ["chatgpt", "codex"]
+    assert saved["example"]["updated_by"] == "chatgpt"
+    assert saved["user_answer"] == "首次处方日"
+    for operation in ("answer", "resolve"):
+        with pytest.raises(FreezeError, match="unavailable"):
+            store.change(qid, operation, "不能代答", expected_revision=saved["revision"],
+                         request_id="chatgpt-" + operation, actor="chatgpt")
+    with pytest.raises(FreezeError, match="recognized AI"):
+        store.add_questions([question("无效来源")], request_id="human-round", actor="user")
+
+
+def test_legacy_records_remain_readable_without_inventing_opinion_author(store):
+    qid = store.add_questions([question("历史问题")], request_id="legacy-round", actor="web_ai")["ids"][0]
+    q = store.read_question(qid)
+    del q["ai_position_by"], q["ai_position_at"]
+    MODULE.atomic_json(store.questions / f"{qid}.json", q)
+    original = (store.questions / f"{qid}.json").read_bytes()
+    assert store.snapshot()["questions"][0]["created_by"] == "web_ai"
+    assert "ai_position_by" not in store.read_question(qid)
+    assert (store.questions / f"{qid}.json").read_bytes() == original
+
+
 def test_keyless_workbench_serves_and_saves_without_login(store, monkeypatch):
     monkeypatch.syspath_prepend(str(SOURCE.parent))
     workbench = importlib.import_module("freeze_workbench")

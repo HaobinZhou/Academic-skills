@@ -15,6 +15,9 @@
   const groupColor = key => colors[Math.max(0, groups().indexOf(groupName(key))) % colors.length];
   const label = status => status === "answered" ? "已回答" : status === "discussing" ? "讨论中" : "待填写";
   const pill = status => '<span class="sw2-pill sw2-pill-' + (status === "discussing" ? "talk" : status) + '">' + label(status) + "</span>";
+  const actorKind = actor => ["user", "codex", "chatgpt"].includes(actor) ? actor : "unknown";
+  const actorLabel = actor => ({ user: "你", codex: "Codex", chatgpt: "ChatGPT", web_ai: "网页 AI（历史来源）" })[actor] || "AI（来源未记录）";
+  const actorBadge = actor => '<span class="sw2-actor sw2-actor-' + actorKind(actor) + '">' + actorLabel(actor) + "</span>";
   const requestId = () => crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random();
   const visible = () => groups().flatMap(group => questions().filter(q => groupName(q.group) === group &&
     (state.group === "all" || group === state.group) &&
@@ -178,10 +181,10 @@
     const thread = q.messages || [];
     const conflictHTML = conflict(q) ? '<section class="sw2-conflict"><strong>项目已有另一份答复</strong><p>' + escape(q.user_answer || "未填写") + '</p><div class="sw2-action-pair"><button class="sw2-button sw2-button-outline" data-action="use-project">使用项目答复</button><button class="sw2-button sw2-button-outline" data-action="keep-draft">保留我的答复</button></div></section>' : "";
     panel.innerHTML = [
-      '<div class="sw2-detail-top"><span class="sw2-detail-code">' + q.id + " · " + escape(groupName(q.group)) + " · 第 " + q.round + " 轮</span>" + pill(q.status) + "</div>",
+      '<div class="sw2-detail-top"><span class="sw2-detail-code">' + q.id + " · " + escape(groupName(q.group)) + " · 第 " + q.round + " 轮</span>" + pill(q.status) + '<span class="sw2-origin">提出 ' + actorBadge(q.created_by) + "</span></div>",
       "<h2>" + escape(q.title) + "</h2>",
       '<div class="sw2-evidence"><div class="sw2-context"><strong>为何需要冻结</strong>' + escape(q.why) + '</div><div class="sw2-source"><strong>识别依据 / 文件</strong>' + escape(q.source_summary) + "</div></div>",
-      '<div class="sw2-section-title">AI 意见</div><div class="sw2-ai-note">' + escape(q.ai_position || "暂无意见") + "</div>",
+      '<div class="sw2-section-title">当前意见' + actorBadge(q.ai_position_by) + '</div><div class="sw2-ai-note sw2-ai-note-' + actorKind(q.ai_position_by) + '">' + escape(q.ai_position || "暂无意见") + "</div>",
       '<div class="sw2-suggestions">' + (q.suggestions || []).map(value => '<button class="sw2-suggestion" type="button" data-action="suggest" data-value="' + escape(value) + '">' + escape(value) + "</button>").join("") + "</div>",
       conflictHTML,
       '<label class="sw2-section-title" for="sw2-answer">口径答复</label><textarea id="sw2-answer" class="sw2-answer" placeholder="填写答复…">' + escape(drafts[q.id] ?? q.user_answer ?? "") + "</textarea>",
@@ -189,7 +192,7 @@
       q.status === "discussing" ? (q.user_answer ? '<button type="button" class="sw2-button sw2-button-outline" data-action="resolve">确认分歧已解决</button>' : "") : '<button type="button" class="sw2-button sw2-button-outline" data-action="mark-talk">保留分歧</button>',
       '<button type="button" class="sw2-button sw2-button-purple" data-action="save-answer">保存答复</button></div></div><div id="sw2-answer-status" class="sw2-action-status" role="status" aria-live="polite" hidden></div>',
       '<div class="sw2-section-title">讨论<small>' + thread.length + ' 条记录</small></div><div class="sw2-thread" aria-label="' + escape(q.title) + '的讨论记录">',
-      thread.length ? thread.map(message => '<div class="sw2-bubble sw2-bubble-' + (message.actor === "user" ? "user" : "codex") + '"><div class="sw2-bubble-head"><span>' + (message.actor === "user" ? "你" : message.actor === "codex" ? "Codex" : "网页 AI") + "</span><span>第 " + message.round + " 轮 · " + escape(message.at || "") + "</span></div>" + escape(message.text) + "</div>").join("") : '<div class="sw2-empty">暂无讨论</div>',
+      thread.length ? thread.map(message => '<div class="sw2-bubble sw2-bubble-' + actorKind(message.actor) + '"><div class="sw2-bubble-head">' + actorBadge(message.actor) + "<span>第 " + message.round + " 轮 · " + escape(message.at || "") + "</span></div>" + escape(message.text) + "</div>").join("") : '<div class="sw2-empty">暂无讨论</div>',
       '</div><label class="sw2-sr-only" for="sw2-message">讨论留言</label><textarea id="sw2-message" class="sw2-message-input" placeholder="写下讨论…">' + escape(messageDrafts[q.id] || "") + "</textarea>",
       '<div class="sw2-message-actions"><span id="sw2-message-hint"></span><button type="button" class="sw2-button sw2-button-coral" data-action="post">保存讨论留言</button></div><div id="sw2-message-status" class="sw2-action-status" role="status" aria-live="polite" hidden></div>',
     ].join("");
@@ -204,7 +207,7 @@
     if (rebuild) {
       if (exampleView.id !== q.id) panel.scrollTop = 0;
       exampleView = { id: q.id, key, html: null, generation: exampleView.generation + 1 };
-      panel.innerHTML = '<div class="sw2-example-head"><span class="sw2-example-kicker">实例推演</span>' + (example ? '<label class="sw2-example-scale" for="sw2-example-scale">显示比例<select id="sw2-example-scale" aria-label="实例显示比例">' + [1, 1.25, 1.5, 1.75, 2].map(scale => '<option value="' + scale + '"' + (state.exampleScale === scale ? " selected" : "") + ">" + scale * 100 + "%</option>").join("") + "</select></label>" : "") + "</div><h2>" + escape(example ? example.title : "暂无实例") + "</h2>" +
+      panel.innerHTML = '<div class="sw2-example-head"><span class="sw2-example-kicker">实例推演' + (example ? " · " + actorBadge(example.updated_by) : "") + "</span>" + (example ? '<label class="sw2-example-scale" for="sw2-example-scale">显示比例<select id="sw2-example-scale" aria-label="实例显示比例">' + [1, 1.25, 1.5, 1.75, 2].map(scale => '<option value="' + scale + '"' + (state.exampleScale === scale ? " selected" : "") + ">" + scale * 100 + "%</option>").join("") + "</select></label>" : "") + "</div><h2>" + escape(example ? example.title : "暂无实例") + "</h2>" +
         (example ? "<p>" + escape(example.summary) + '</p><div class="sw2-example-viewport" style="--example-scale:' + state.exampleScale + '"><iframe sandbox="" referrerpolicy="no-referrer" title="' + escape(q.title) + '的 HTML 示例"></iframe></div><details><summary>HTML 源码</summary><pre id="sw2-example-code"></pre></details>' : "") +
         '<button type="button" class="sw2-button sw2-button-outline" data-action="request-example">' + (example ? "请求修改实例" : "请求实例") + '</button><div id="sw2-example-status" class="sw2-action-status" role="status" aria-live="polite" hidden></div>';
       applyBusy();
@@ -293,9 +296,10 @@
     if (excluded.length) lines.push("我选择仅交接已保存内容。以下题目的本地未保存草稿未提交：" + excluded.join("、") + "。");
     lines.push("", "全部问题、答复与讨论：");
     for (const q of all) {
-      lines.push("", q.id + " " + q.title + " [" + label(q.status) + "]", "答复：" + (q.user_answer || "未填写"));
-      if (q.ai_position) lines.push("AI 意见：" + q.ai_position);
-      for (const m of q.messages || []) lines.push("讨论（" + m.actor + "，第 " + m.round + " 轮）：" + m.text);
+      lines.push("", q.id + " " + q.title + " [" + label(q.status) + "]", "提出：" + actorLabel(q.created_by), "答复：" + (q.user_answer || "未填写"));
+      if (q.ai_position) lines.push("当前意见（" + actorLabel(q.ai_position_by) + "）：" + q.ai_position);
+      for (const m of q.messages || []) lines.push("讨论（" + actorLabel(m.actor) + "，第 " + m.round + " 轮）：" + m.text);
+      if (q.example) lines.push("实例（" + actorLabel(q.example.updated_by) + "）：" + q.example.title);
     }
     lines.push("", "请先核对全部答复与分歧，再一次性补充当前可识别的全部新问题。未经我的确认，不要把讨论草稿视为已冻结口径。正式冻结需更新 Canonical 并验证。");
     return lines.join("\n");

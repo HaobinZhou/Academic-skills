@@ -48,6 +48,12 @@ An import file has this shape:
 
 For `ai-change`, supply `question_id`, `operation`, `value`, `expected_revision`, and an optional stable `request_id`. Operations are `comment`, `ai_position`, `example` or `reopen`. `example` takes `{"title":"...","summary":"...","html":"..."}`. The HTML is shown in an iframe without script or same-origin permission; use CSS and native controls for interactive explanations. A `reopen` reason preserves the user's earlier answer and marks the question for discussion. The user-only `resolve` operation closes a dispute after an answer has been saved; remote AI cannot invoke it. Read the latest snapshot before writing so revision conflicts do not overwrite human changes.
 
+## Author sources
+
+Persist `codex` or `chatgpt` as the AI actor. Local `import` and `ai-change` commands record Codex; MCP write tools accept `actor: "chatgpt"` (the default) or `actor: "codex"`. Codex must explicitly pass `actor: "codex"` when using MCP. This is declared provenance, not OAuth verification of which product sent the content. Browser answers and comments always record `user`; the AI source parameter cannot grant human operations.
+
+Show named, distinctly colored author badges for the question proposer, current opinion, each discussion message and the example's latest editor. Include the same names in handoff summaries. New records store `created_by`, `ai_position_by`/`ai_position_at`, message `actor`, and example `updated_by`/`updated_at`. Opinion revisions append the authored text to the discussion. Do not infer an old opinion's author from its question proposer. Legacy `web_ai` records display as historical web AI; missing authors remain unknown. Existing files need no bulk migration. New request IDs also bind the actor, so a retry cannot silently change attribution.
+
 ## Review layout
 
 The review UI contains the workbench name, round, counts and operations in one compact upper band. It is for experienced reviewers: omit introductory slogans, onboarding paragraphs and repeated descriptions of the workflow. Retain question-specific scientific context, sources, operation feedback and unsaved-state indicators. On desktop, the three work areas fill the remaining viewport height and scroll independently; do not cap them at a fixed pixel height. Group the complete question list by domain. Switching questions resets the detail scroll position so the new question's title is visible. Search with no matches displays a filter-specific empty state and a clear-filter action.

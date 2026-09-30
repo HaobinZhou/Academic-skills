@@ -21,6 +21,7 @@ QUESTION_ID = re.compile(r"F-[0-9]{6}\Z")
 MAX_JSON = 1024 * 1024
 MAX_HTML = 128 * 1024
 STATUSES = {"open", "answered", "discussing"}
+AI_ACTORS = {"codex", "chatgpt", "web_ai"}  # web_ai remains readable for legacy clients.
 
 
 class FreezeError(ValueError):
@@ -190,6 +191,8 @@ class FreezeStore:
             return question
 
     def add_questions(self, items: list[dict], *, request_id: str, actor: str = "codex") -> dict:
+        if actor not in AI_ACTORS:
+            raise FreezeError("Questions require a recognized AI actor")
         require_text(request_id, "request_id", 100)
         if not isinstance(items, list) or not 1 <= len(items) <= 200:
             raise FreezeError("Submit 1–200 questions in one round")
@@ -213,7 +216,8 @@ class FreezeStore:
             manifest = self._manifest()
             previous = manifest["requests"].get(request_id)
             if previous:
-                if previous["fingerprint"] != fingerprint:
+                previous_actor = previous.get("actor") or self._question(previous["ids"][0]).get("created_by")
+                if previous["fingerprint"] != fingerprint or previous_actor != actor:
                     raise FreezeError("request_id was used with different questions")
                 return {"round": previous["round"], "ids": previous["ids"], "replayed": True}
             existing_numbers = [int(value[2:]) for value in manifest["question_ids"]]
@@ -223,21 +227,26 @@ class FreezeStore:
             round_number = manifest["round"] + 1
             ids = [f"F-{first + number:06d}" for number in range(len(clean))]
             for question_id, item in zip(ids, clean):
+                created_at = now()
                 atomic_json(self.questions / f"{question_id}.json", {
                     "schema_version": 1, "id": question_id, "round": round_number,
-                    **item, "created_by": actor, "created_at": now(),
+                    **item, "created_by": actor, "created_at": created_at,
+                    "ai_position_by": actor, "ai_position_at": created_at,
                     "status": "open", "user_answer": None, "messages": [],
                     "example": None, "canonical_ref": None, "revision": 1, "requests": {},
                 })
             manifest["round"] = round_number
             manifest["revision"] += 1
             manifest["question_ids"].extend(ids)
-            manifest["requests"][request_id] = {"fingerprint": fingerprint, "round": round_number, "ids": ids}
+            manifest["requests"][request_id] = {"fingerprint": fingerprint, "round": round_number, "ids": ids,
+                                                "actor": actor}
             atomic_json(self.manifest, manifest)
             return {"round": round_number, "ids": ids, "replayed": False}
 
     def change(self, question_id: str, operation: str, value: object, *,
                expected_revision: int, request_id: str, actor: str) -> dict:
+        if actor not in AI_ACTORS | {"user"}:
+            raise FreezeError("Operation is unavailable to this actor")
         require_text(request_id, "request_id", 100)
         fingerprint = request_fingerprint(operation, value)
         with self.locked(create=True):
@@ -246,7 +255,8 @@ class FreezeStore:
             question = self._question(question_id)
             previous = question["requests"].get(request_id)
             if previous:
-                if previous != fingerprint:
+                previous_actor = question.get("request_actors", {}).get(request_id)
+                if previous != fingerprint or (previous_actor is not None and previous_actor != actor):
                     raise FreezeError("request_id was used with different content")
                 return {**question, "replayed": True}
             if question["revision"] != expected_revision:
@@ -261,24 +271,26 @@ class FreezeStore:
                 if not question["user_answer"]:
                     raise FreezeError("Save an answer before resolving the discussion")
                 question["status"] = "answered"
-            elif operation == "comment" and actor in {"user", "codex", "web_ai"}:
+            elif operation == "comment" and actor in AI_ACTORS | {"user"}:
                 text = require_text(value, "message")
                 question["messages"].append({"id": request_id, "actor": actor,
                                              "text": text, "round": self._manifest()["round"], "at": now()})
                 if actor == "user":
                     question["status"] = "discussing"
-            elif operation == "ai_position" and actor in {"codex", "web_ai"}:
+            elif operation == "ai_position" and actor in AI_ACTORS:
                 text = require_text(value, "ai_position", 10000)
                 question["ai_position"] = text
+                question["ai_position_by"] = actor
+                question["ai_position_at"] = now()
                 question["messages"].append({"id": request_id, "actor": actor,
                                              "text": text, "round": self._manifest()["round"], "at": now()})
-            elif operation == "reopen" and actor in {"codex", "web_ai"}:
+            elif operation == "reopen" and actor in AI_ACTORS:
                 text = require_text(value, "reason", 10000)
                 question["status"] = "discussing"
                 question["messages"].append({"id": request_id, "actor": actor,
                                              "text": "重新讨论：" + text,
                                              "round": self._manifest()["round"], "at": now()})
-            elif operation == "example" and actor in {"codex", "web_ai"}:
+            elif operation == "example" and actor in AI_ACTORS:
                 if not isinstance(value, dict):
                     raise FreezeError("example must be an object")
                 title = require_text(value.get("title"), "example.title", 300)
@@ -295,5 +307,6 @@ class FreezeStore:
                 raise FreezeError("Invalid question status")
             question["revision"] += 1
             question["requests"][request_id] = fingerprint
+            question.setdefault("request_actors", {})[request_id] = actor
             atomic_json(self.questions / f"{question_id}.json", question)
             return question

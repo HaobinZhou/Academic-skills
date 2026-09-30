@@ -85,6 +85,8 @@ When the user asks to identify or resolve scientific definitions through the web
 
 `Freeze/` contains structured collaboration drafts, not current Canonical authority. User answers, AI positions, messages, and explanatory HTML examples have distinct fields and per-question revisions. Neither a user answer nor an MCP edit declares a definition frozen. Once the relevant scientific choices are confirmed, update the registered Canonical owner, R implementation and contract test together, then run the normal completion gate. The workbench must not write Canonical, Audit, Attention, or Decision Memory on behalf of a webpage or remote AI.
 
+Preserve the author source: local commands record Codex; when Codex uses the MCP Freeze write tools, explicitly pass `actor: "codex"` (ChatGPT uses `"chatgpt"`). Show author names on questions, opinions, discussion messages and examples; leave ambiguous historical authors unassigned.
+
 The web process is temporary. Start it on request with `scripts/freeze_workbench.py start TARGET`; return its port and URL. Its default `127.0.0.1` listener can be forwarded by a proxy on the same host; use `--public-origin https://...` for a remote link. The default mode uses a random login link. When the user explicitly wants a directly shareable page without a login key, use `--no-auth`; anyone who reaches the forwarded address can read and edit the draft Freeze records. Use `--host 0.0.0.0` only for explicit direct network access. `stop TARGET` ends the web process while the project's records remain. Remote ChatGPT participates through the separately configured OppenSteward-MCP Freeze tools, not the temporary web port.
 
 ## Canonical Ownership
