@@ -2,7 +2,9 @@
   const root = document.getElementById("sw-freeze-v2");
   const names = { goal: "研究目标", data: "数据与人群", time: "时间与策略", outcome: "结局与偏倚", analysis: "统计与解释", delivery: "复现与交付" };
   const colors = ["#7464ef", "#20b9d1", "#f39b35", "#ee638e", "#48bb82", "#5888ec"];
-  const state = { snapshot: { round: 0, questions: [] }, selected: null, group: "all", search: "", csrf: "", exampleScale: 1.5, busy: false };
+  const state = { snapshot: { round: 0, questions: [] }, selected: null, group: "all", search: "", csrf: "", exampleScale: 1.5, busy: false, mobileView: "list" };
+  const mobileMedia = window.matchMedia("(max-width: 680px)");
+  let mobileListScroll = 0;
   const drafts = {}, messageDrafts = {}, draftBases = {}, draftRequests = {};
   let storageKey, storageOK = true, loadedDrafts = false, noticeTimer, returnFocus;
   let exampleView = { id: null, key: null, html: null, generation: 0 };
@@ -25,6 +27,29 @@
   const pending = () => questions().filter(q => Object.hasOwn(drafts, q.id) || Boolean(messageDrafts[q.id]?.trim()));
   const conflict = q => Object.hasOwn(drafts, q.id) && draftBases[q.id] && draftBases[q.id].answer !== q.user_answer;
   const overlay = () => root.querySelector("#sw2-overlay");
+
+  function updateMobileNav() {
+    if (!selected()) state.mobileView = "list";
+    root.dataset.mobileView = state.mobileView;
+    root.querySelector("#sw2-mobile-question").textContent = state.selected || "";
+    root.querySelector('[data-action="mobile-detail"]').setAttribute("aria-pressed", String(state.mobileView === "detail"));
+    root.querySelector('[data-action="mobile-example"]').setAttribute("aria-pressed", String(state.mobileView === "example"));
+  }
+
+  function showMobileView(view) {
+    state.mobileView = view;
+    updateMobileNav();
+    if (!mobileMedia.matches) return;
+    requestAnimationFrame(() => {
+      if (view === "list") {
+        root.querySelector('[data-action="select"][data-id="' + state.selected + '"]')?.focus({ preventScroll: true });
+        window.scrollTo(0, mobileListScroll);
+      } else {
+        window.scrollTo(0, 0);
+        root.querySelector('[data-action="mobile-' + view + '"]').focus({ preventScroll: true });
+      }
+    });
+  }
 
   function persistDrafts() {
     if (!storageKey) return;
@@ -245,7 +270,7 @@
     root.querySelector("#sw2-talk").textContent = all.filter(q => q.status === "discussing").length;
     root.querySelector("#sw2-answered").textContent = all.filter(q => q.status === "answered").length;
     root.querySelector("#sw2-search").value = state.search;
-    renderGroups(); renderList(); renderDetail(); renderExample(refreshExample); applyBusy();
+    renderGroups(); renderList(); renderDetail(); renderExample(refreshExample); updateMobileNav(); applyBusy();
   }
 
   async function change(id, operation, value, stableRequest) {
@@ -341,7 +366,13 @@
       if (action === "clear-filter") state.search = "";
       state.selected = visible()[0]?.id || null; persistDrafts(); render(); return;
     }
-    if (action === "select") { state.selected = button.dataset.id; persistDrafts(); renderList(); renderDetail(); renderExample(); updateDraftUI(); return; }
+    if (action === "select") {
+      if (mobileMedia.matches && state.mobileView === "list") mobileListScroll = window.scrollY;
+      state.selected = button.dataset.id; persistDrafts(); renderList(); renderDetail(); renderExample(); updateDraftUI();
+      showMobileView("detail"); return;
+    }
+    if (action === "mobile-back") { showMobileView("list"); return; }
+    if (action === "mobile-detail" || action === "mobile-example") { showMobileView(action === "mobile-detail" ? "detail" : "example"); return; }
     if (action === "suggest") {
       const area = root.querySelector("#sw2-answer"); area.value = button.dataset.value;
       answerDraft(state.selected, area.value); area.focus(); showNotice("选项已填入，尚未保存。", "info", "answer"); return;
@@ -411,6 +442,11 @@
   root.addEventListener("input", event => {
     if (event.target.id === "sw2-answer") { answerDraft(state.selected, event.target.value); root.querySelector("#sw2-answer-status").hidden = true; }
     if (event.target.id === "sw2-message") { messageDraft(state.selected, event.target.value); root.querySelector("#sw2-message-status").hidden = true; }
+  });
+
+  mobileMedia.addEventListener("change", () => {
+    state.mobileView = "list"; updateMobileNav();
+    if (mobileMedia.matches) window.scrollTo(0, 0);
   });
   document.addEventListener("keydown", event => {
     if (overlay().hidden) return;

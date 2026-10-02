@@ -6,7 +6,7 @@
 <title>Stepwise R · 冻结口径工作台</title>
 </head>
 <body style="margin:0;background:#f5f4fb">
-<div id="sw-freeze-v2" class="sw2-preview">
+<div id="sw-freeze-v2" class="sw2-preview" data-mobile-view="list">
   <main class="sw2-app" aria-label="冻结口径工作台">
     <header class="sw2-header">
       <div class="sw2-brand-block">
@@ -28,6 +28,10 @@
     <nav class="sw2-groups" aria-label="问题领域">
       <div class="sw2-column-title">问题领域</div>
       <div id="sw2-group-list"></div>
+    </nav>
+    <nav class="sw2-mobile-nav" aria-label="问题详情导航">
+      <div class="sw2-mobile-nav-top"><button type="button" class="sw2-button sw2-button-outline" data-action="mobile-back">← 返回问题列表</button><strong id="sw2-mobile-question"></strong></div>
+      <div class="sw2-mobile-tabs"><button type="button" data-action="mobile-detail" aria-controls="sw2-detail" aria-pressed="true">答复与讨论</button><button type="button" data-action="mobile-example" aria-controls="sw2-example" aria-pressed="false">实例推演</button></div>
     </nav>
     <div class="sw2-workspace">
       <section class="sw2-list-column" aria-label="全部问题列表">
@@ -86,6 +90,7 @@
   #sw-freeze-v2 .sw2-group small { color: #77748d; font-size: inherit; font-weight: 750; }
   #sw-freeze-v2 .sw2-dot { width: 11px; height: 11px; border-radius: 50%; background: var(--group-color, #6255d7); flex: 0 0 auto; }
   #sw-freeze-v2 .sw2-workspace { display: grid; grid-template-columns: clamp(280px, 18vw, 430px) minmax(340px, 1fr) minmax(400px, 42%); flex: 1 1 0; min-height: 0; overflow: clip; }
+  #sw-freeze-v2 .sw2-mobile-nav { display: none; }
   #sw-freeze-v2 .sw2-list-column { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: #fff; border-right: 1px solid #e6e4f1; }
   #sw-freeze-v2 .sw2-list-head { display: grid; gap: 12px; padding: 18px; flex: 0 0 auto; border-bottom: 1px solid #ede9f5; }
   #sw-freeze-v2 .sw2-list-head strong { display: block; font-size: clamp(20px, .72vw, 24px); color: #293d83; line-height: 1.35; }
@@ -221,9 +226,24 @@
     #sw-freeze-v2 .sw2-hero-actions .sw2-button { flex: 1; }
     #sw-freeze-v2 .sw2-groups { padding: 9px 12px; }
     #sw-freeze-v2 .sw2-column-title { display: none; }
-    #sw-freeze-v2 .sw2-workspace { display: block; }
+    #sw-freeze-v2 .sw2-workspace { display: block; min-height: 0; }
     #sw-freeze-v2 .sw2-list-column { border-right: 0; border-bottom: 1px solid #e6e4f1; }
-    #sw-freeze-v2 .sw2-question-list { max-height: 300px; flex: none; }
+    #sw-freeze-v2 .sw2-question-list { max-height: none; overflow: visible; flex: none; }
+    #sw-freeze-v2[data-mobile-view="list"] .sw2-detail,
+    #sw-freeze-v2[data-mobile-view="list"] .sw2-example { display: none; }
+    #sw-freeze-v2[data-mobile-view="detail"] .sw2-list-column,
+    #sw-freeze-v2[data-mobile-view="detail"] .sw2-example,
+    #sw-freeze-v2[data-mobile-view="example"] .sw2-list-column,
+    #sw-freeze-v2[data-mobile-view="example"] .sw2-detail { display: none; }
+    #sw-freeze-v2:not([data-mobile-view="list"]) .sw2-header,
+    #sw-freeze-v2:not([data-mobile-view="list"]) .sw2-groups { display: none; }
+    #sw-freeze-v2:not([data-mobile-view="list"]) .sw2-mobile-nav { display: grid; gap: 12px; position: sticky; top: 0; z-index: 10; padding: max(12px, env(safe-area-inset-top)) 16px 12px; border-bottom: 1px solid #d9d0f5; background: #fffdfb; }
+    #sw-freeze-v2 .sw2-mobile-nav-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    #sw-freeze-v2 .sw2-mobile-nav-top strong { font-size: var(--sw-meta); color: #6850ce; }
+    #sw-freeze-v2 .sw2-mobile-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    #sw-freeze-v2 .sw2-mobile-tabs button { min-height: 44px; border: 1px solid #cdbde8; border-radius: 9px; padding: 8px; background: #fff; color: #6546b2; font: inherit; font-weight: 750; }
+    #sw-freeze-v2 .sw2-mobile-tabs button[aria-pressed="true"] { color: #fff; background: #7250e3; border-color: #7250e3; }
+    #sw-freeze-v2 .sw2-notice { top: auto; right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); width: calc(100vw - 32px); pointer-events: none; }
     #sw-freeze-v2 .sw2-detail { padding: 22px 16px 30px; }
     #sw-freeze-v2 .sw2-section-title { flex-wrap: wrap; }
     #sw-freeze-v2 .sw2-answer-actions, #sw-freeze-v2 .sw2-message-actions { flex-wrap: wrap; }

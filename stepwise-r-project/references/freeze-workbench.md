@@ -60,6 +60,10 @@ The review UI contains the workbench name, round, counts and operations in one c
 
 Use readable, responsive type, prominent question titles and distinct evidence cards. The example area uses 42% of the desktop width without a maximum-width cap. Its display scale defaults to 150%. Scale the existing iframe through its viewport container, preserving native control selections rather than rebuilding its document. Saving unrelated answers and refreshing an unchanged example also preserve the iframe. Reload only when the question or example source changes. Author new examples with responsive layouts and legible text.
 
+On phone screens (at most 680 CSS pixels wide), open on the complete question list, including after a browser reload. Only tapping a question opens its review view. Hide the list and overview while reviewing; use a compact sticky navigation bar with `返回问题列表` and `答复与讨论` / `实例推演` controls. Display one review area at a time. Returning restores the list scroll position and retains filters and unsaved drafts. Switching review areas preserves inputs and the example iframe's current choices. Moving from a larger layout to a phone layout starts at the list; desktop keeps its simultaneous work areas.
+
+Place phone notifications near the bottom safe area so feedback does not obscure the return navigation. Notifications do not intercept touches.
+
 ## Drafts, saves and handoff
 
 Pending browser inputs are separate from saved project records. Persist drafts synchronously in project-keyed `sessionStorage`, independently for each browser tab, so a browser refresh restores its answers, comments and last selected question. Show unsaved counts and per-question markers. Request the browser's normal leave warning when unsaved drafts exist; its presentation depends on the browser. Closing a tab or clearing browser storage is not durable project storage. If browser storage is unavailable, visibly report that local draft caching failed and require explicit saving. AI and MCP readers only see project records written by explicit saves.
