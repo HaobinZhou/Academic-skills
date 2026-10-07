@@ -139,3 +139,26 @@ related_skill:
 confidence_gain:
 next_unlock:
 ```
+
+## Research Idea Entry
+
+```text
+id:
+created_at:
+idea:
+why_it_matters:
+evidence_so_far:
+status: raw | promising | needs_evidence | deferred | converted
+next_check:
+```
+
+## Local Source Asset Entry
+
+```text
+id:
+created_at:
+source:
+local_path:
+why_saved:
+related_reading_task:
+```

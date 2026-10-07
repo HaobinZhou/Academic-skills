@@ -12,6 +12,12 @@ On a new machine, initialize memory with:
 python3 adhd-academic-tutor/scripts/init_memory.py
 ```
 
+Validate memory structure with:
+
+```bash
+python3 adhd-academic-tutor/scripts/validate_memory.py
+```
+
 To choose a custom private memory location:
 
 ```bash
@@ -20,18 +26,20 @@ python3 adhd-academic-tutor/scripts/init_memory.py --memory-dir /path/to/private
 
 Do not commit memory files. They contain personal learning context.
 
-## Memory Files
+## Memory Items
 
-Use this 4+1 structure:
+Use this core memory structure:
 
 | File | Purpose |
 | --- | --- |
 | `user_cognitive_profile.md` | Stable learner profile, English pain profile, time calibration, resistance triggers, preferred recovery moves |
 | `academic_knowledge_graph.md` | Field map, topic curriculum, concept mastery, deep-reading bank, writing pattern bank, supervisor-ready talking points |
 | `reading_backlog_master.md` | Paper backlog, source-reading log, task status, skipped/deferred items |
+| `research_idea_inbox.md` | Raw and developing research ideas, hypotheses, thesis directions, method angles, and supervisor-discussion thoughts |
 | `achievement_log.md` | User-visible record of evidence-backed academic wins, unlocked skills, and confidence-building milestones |
 | `session_context.json` | Current-session state only |
 | `memory_manifest.json` | Initialization metadata and schema marker |
+| `assets/` | Persistent local source assets such as figures, tables, screenshots, PDFs, and supplements |
 
 If any required file is missing, run `scripts/init_memory.py` before continuing. If the script cannot be run, create the required files manually from this reference.
 
@@ -64,6 +72,79 @@ Useful `status` values:
 - `stale`
 - `blocked`
 - `deferred`
+
+## Canonical Structured Sections
+
+The following headings and table headers are canonical. Before appending to one of these sections, inspect the file and match the exact heading and column order. If the expected section is missing, restore the canonical section from this schema before writing the entry.
+
+### `achievement_log.md`
+
+Append achievements only under:
+
+```text
+## Unlocked Achievements
+
+| id | created_at | achievement | evidence | why_it_matters | related_skill | next_unlock |
+| --- | --- | --- | --- | --- | --- | --- |
+```
+
+Do not create `## Achievements`, `## Achievement Log`, or other near-synonym sections for achievement entries.
+
+### `reading_backlog_master.md`
+
+Use these exact structured sections when present:
+
+```text
+## Pending Broad Survey Papers
+| id | paper | topic | reason | status | next_segment |
+
+## Pending Deep-Reading Papers
+| id | paper | segment | reason | time_range | status |
+
+## Completed Source Segments
+| id | paper | segment | completed_at | evidence | achievement_id |
+
+## Local Source Assets
+| id | created_at | source | local_path | why_saved |
+
+## Skipped or Deferred
+| id | paper | reason | revisit_condition |
+
+## Source Reading Log
+| id | created_at | paper | segment | assigned_range | actual_duration | completion | friction | next_action |
+```
+
+### `research_idea_inbox.md`
+
+Use these exact structured sections:
+
+```text
+## Raw Ideas
+| id | created_at | idea | why_it_matters | evidence_so_far | status | next_check |
+
+## Promising Ideas
+| id | created_at | idea | why_it_matters | evidence_so_far | status | next_check |
+
+## Deferred Ideas
+| id | created_at | idea | why_it_matters | evidence_so_far | status | next_check |
+
+## Converted Ideas
+| id | created_at | converted_to | evidence | status |
+```
+
+### `academic_knowledge_graph.md`
+
+Use these exact top-level sections:
+
+```text
+## Topic Curriculum
+## Concept Mastery
+## Deep Reading Bank
+## Writing Pattern Bank
+## Supervisor-Ready Talking Points
+```
+
+Do not store raw ideas here. Store raw ideas in `research_idea_inbox.md`; convert them into this file only after source evidence exists.
 
 ## File-Level Rules
 
@@ -105,6 +186,49 @@ Record literature state:
 - skipped or deferred papers with reasons
 - next source segment to read
 - how each paper fits the knowledge graph
+- local source assets saved under `assets/`, including source, local path, and why saved
+
+### research_idea_inbox.md
+
+Record ideas before they are fully validated:
+
+- sudden research ideas
+- possible thesis directions
+- method angles
+- supervisor-discussion ideas
+- hypotheses that need literature support
+- questions to check later
+
+Use stable sections:
+
+```text
+## Raw Ideas
+## Promising Ideas
+## Deferred Ideas
+## Converted Ideas
+```
+
+Each idea should include:
+
+```text
+id:
+created_at:
+idea:
+why_it_matters:
+evidence_so_far:
+status:
+next_check:
+```
+
+Useful `status` values:
+
+- `raw`
+- `promising`
+- `needs_evidence`
+- `deferred`
+- `converted`
+
+Do not put unvalidated ideas directly into `Supervisor-Ready Talking Points`. Convert them only after enough source evidence exists.
 
 ### achievement_log.md
 
@@ -137,6 +261,25 @@ Use only for current-session state:
 ```
 
 Do not use this file as long-term memory.
+
+### assets/
+
+Store persistent source-facing files here when they should be reused across sessions:
+
+- paper PDFs
+- figures and tables
+- screenshots
+- supplementary files
+- downloaded reports or guidelines
+
+Prefer descriptive filenames:
+
+```text
+ADA_EASD_2022_Table1_medications_for_lowering_glucose.jpg
+Dennis_2025_five_drug_model.pdf
+```
+
+Record saved assets in `reading_backlog_master.md` under `Local Source Assets`. Do not rely on filenames alone to remember why a file matters.
 
 ## Write Timing
 
@@ -176,9 +319,8 @@ Use Markdown and JSON as the default memory substrate.
 
 Recommended lightweight validation:
 
-- JSON Schema or Pydantic-style validation for `session_context.json`.
-- Optional schema checks for structured blocks inside memory files.
-
-Do not introduce Notion, database systems, vector stores, or heavy knowledge-base software in the first version.
+- Run `scripts/validate_memory.py` after initialization, schema changes, structured table edits, and indexed asset saves.
+- The validator checks required files and directories, manifest schema, `session_context.json` keys, canonical Markdown headings/table headers, and indexed local asset paths.
+- Keep validation lightweight. Do not introduce Notion, database systems, vector stores, or heavy knowledge-base software in the first version.
 
 Zotero may be used separately for PDF, DOI, and BibTeX management, but it is not the tutor memory system.

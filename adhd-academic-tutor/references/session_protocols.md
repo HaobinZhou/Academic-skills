@@ -177,3 +177,5 @@ Good achievement examples:
 - improved a time estimate from real feedback
 
 Do not add achievements for every tiny chat step. The achievement log should rebuild confidence with durable evidence, not empty praise.
+
+Before appending an achievement, inspect `achievement_log.md` and write only under the canonical `## Unlocked Achievements` table. Do not invent alternate section names.

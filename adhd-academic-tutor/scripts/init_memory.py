@@ -17,14 +17,6 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
-def write_file(path: Path, content: str, force: bool) -> str:
-    if path.exists() and not force:
-        return "exists"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-    return "created" if not path.exists() else "written"
-
-
 def user_cognitive_profile() -> str:
     ts = now_iso()
     return f"""# User Cognitive Profile
@@ -128,6 +120,11 @@ def reading_backlog_master() -> str:
 | id | paper | segment | completed_at | evidence | achievement_id |
 | --- | --- | --- | --- | --- | --- |
 
+## Local Source Assets
+
+| id | created_at | source | local_path | why_saved |
+| --- | --- | --- | --- | --- |
+
 ## Skipped or Deferred
 
 | id | paper | reason | revisit_condition |
@@ -137,6 +134,33 @@ def reading_backlog_master() -> str:
 
 | id | created_at | paper | segment | assigned_range | actual_duration | completion | friction | next_action |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+"""
+
+
+def research_idea_inbox() -> str:
+    return """# Research Idea Inbox
+
+This file stores raw and developing research ideas without forcing immediate evaluation.
+
+## Raw Ideas
+
+| id | created_at | idea | why_it_matters | evidence_so_far | status | next_check |
+| --- | --- | --- | --- | --- | --- | --- |
+
+## Promising Ideas
+
+| id | created_at | idea | why_it_matters | evidence_so_far | status | next_check |
+| --- | --- | --- | --- | --- | --- | --- |
+
+## Deferred Ideas
+
+| id | created_at | idea | why_it_matters | evidence_so_far | status | next_check |
+| --- | --- | --- | --- | --- | --- | --- |
+
+## Converted Ideas
+
+| id | created_at | converted_to | evidence | status |
+| --- | --- | --- | --- | --- |
 """
 
 
@@ -186,14 +210,16 @@ def manifest(memory_dir: Path) -> str:
     data = {
         "memory_dir": str(memory_dir),
         "created_at": now_iso(),
-        "schema": "adhd-academic-tutor-memory-v1",
+        "schema": "adhd-academic-tutor-memory-v2",
         "files": [
             "user_cognitive_profile.md",
             "academic_knowledge_graph.md",
             "reading_backlog_master.md",
+            "research_idea_inbox.md",
             "achievement_log.md",
             "session_context.json",
             "memory_manifest.json",
+            "assets/",
         ],
     }
     return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
@@ -217,12 +243,16 @@ def main() -> int:
         "user_cognitive_profile.md": user_cognitive_profile(),
         "academic_knowledge_graph.md": academic_knowledge_graph(),
         "reading_backlog_master.md": reading_backlog_master(),
+        "research_idea_inbox.md": research_idea_inbox(),
         "achievement_log.md": achievement_log(),
         "session_context.json": session_context(),
         "memory_manifest.json": manifest(memory_dir),
     }
 
     print(f"Initializing ADHD Academic Tutor memory at: {memory_dir}")
+    assets_dir = memory_dir / "assets"
+    assets_dir.mkdir(parents=True, exist_ok=True)
+    print(f"exists  {assets_dir}" if any(assets_dir.iterdir()) else f"created {assets_dir}")
     for name, content in templates.items():
         path = memory_dir / name
         existed = path.exists()
